@@ -10,6 +10,7 @@ from autodirect import AutoDirectHandler
 from multisearch import MultiSearchHandler
 from database import DatabaseHandler
 
+
 class ToolTip:
     def __init__(self, widget):
         self.widget = widget
@@ -38,6 +39,7 @@ class ToolTip:
         if tw:
             tw.destroy()
 
+
 def create_tooltip(widget, message):
     tool_tip = ToolTip(widget)
 
@@ -56,6 +58,7 @@ def browse_folder(entry):
     if folder_selected:
         entry.delete(0, "end")
         entry.insert(0, folder_selected)
+
 
 class App(ctk.CTk):
     def __init__(self, *args, **kwargs):
@@ -77,6 +80,7 @@ class App(ctk.CTk):
         self.load_saved_status()
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
+        # TODO : ugly
         '''User Feedback Frame'''
         self.user_feedback_frame = ctk.CTkFrame(self)
         self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
@@ -92,7 +96,8 @@ class App(ctk.CTk):
                                                             indeterminate_speed=1)
             self.bouncing_progress_bar.grid(row=0, column=0, sticky="ew", padx=20)
             self.bouncing_progress_bar.start()
-            self.progress_label = ctk.CTkLabel(self.user_feedback_frame, text="AutoClean in progress....", font=("Arial", 8))
+            self.progress_label = ctk.CTkLabel(self.user_feedback_frame, text="AutoClean in progress....",
+                                               font=("Arial", 8))
             self.progress_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
             self.user_feedback_frame.grid_columnconfigure(0, weight=1)
             self.user_feedback_frame.grid_columnconfigure(1, weight=0)
@@ -100,7 +105,8 @@ class App(ctk.CTk):
         if self.show_error:
             self.user_feedback_frame = ctk.CTkFrame(self)
             self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
-            self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="An error has occurred...", font=("Arial", 8))
+            self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="An error has occurred...",
+                                                    font=("Arial", 8))
             self.user_feedback_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
             self.user_feedback_frame.grid_columnconfigure(0, weight=1)
             self.user_feedback_frame.grid_columnconfigure(1, weight=0)
@@ -111,10 +117,12 @@ class App(ctk.CTk):
             self.start_operations()
         elif status == "paused":
             self.pause_operations()
+
     def update_next_cleaning_time_label(self):
         next_cleaning_time = self.auto_clean_handler.get_next_cleaning_time()
         self.tab_view.ac_next_cleaning_label.configure(text=f"Next Clean in\n\n{next_cleaning_time}")
-        self.tab_view.ac_next_cleaning_label.after(60000, self.update_next_cleaning_time_label)  # Update every minute
+        self.tab_view.ac_next_cleaning_label.after(600000,
+                                                   self.update_next_cleaning_time_label)  # Update every 10 minutes
 
         # Sidebar Menu
         self.db_handler = DatabaseHandler()
@@ -142,7 +150,8 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Peanut", font=("Helvetica", 20, "bold"), text_color="#3C4142")
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Peanut", font=("Helvetica", 20, "bold"),
+                                       text_color="#3C4142")
         self.logo_label.grid(row=0, column=0, padx=18, pady=(20, 10))
         self.create_sidebar_buttons()
         self.create_sidebar_theme_scaling()
@@ -200,18 +209,23 @@ class App(ctk.CTk):
         self.auto_direct_handler.resume_operations()
 
     def create_sidebar_theme_scaling(self):
-        self.theme_label_image = ctk.CTkImage(light_image=Image.open("images/13125625.png"), dark_image=Image.open("images/13125625.png"))
+        self.theme_label_image = ctk.CTkImage(light_image=Image.open("images/13125625.png"),
+                                              dark_image=Image.open("images/13125625.png"))
         self.theme_label = ctk.CTkLabel(self.sidebar_frame, image=self.theme_label_image, text="")
         self.theme_label.grid(row=5, column=0, padx=20, pady=(10, 0), sticky="ew")
-        self.theme_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=["System", "Light", "Dark"], command=self.change_theme_event)
+        self.theme_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=["System", "Light", "Dark"],
+                                            command=self.change_theme_event)
         self.theme_menu.set(self.theme)
         self.theme_menu.grid(row=6, column=0, padx=20, pady=(10, 10), sticky="ew")
 
-        self.scaling_label_image = ctk.CTkImage(light_image=Image.open("images/4606575.png"), dark_image=Image.open("images/4606575.png"))
+        self.scaling_label_image = ctk.CTkImage(light_image=Image.open("images/4606575.png"),
+                                                dark_image=Image.open("images/4606575.png"))
         self.scaling_label = ctk.CTkLabel(self.sidebar_frame, image=self.scaling_label_image, text="")
         self.scaling_label.grid(row=7, column=0, padx=20, pady=(5, 0), sticky="ew")
         self.scaling_menu_var = ctk.StringVar(value=f"{self.ui_size}%")
-        self.scaling_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=["50%", "75%", "100%", "125%", "150%", "175%", "200%"], variable=self.scaling_menu_var, command=self.change_scaling_event)
+        self.scaling_menu = ctk.CTkOptionMenu(self.sidebar_frame,
+                                              values=["50%", "75%", "100%", "125%", "150%", "175%", "200%"],
+                                              variable=self.scaling_menu_var, command=self.change_scaling_event)
         self.scaling_menu.grid(row=8, column=0, padx=20, pady=(5, 20), sticky="ew")
 
     def apply_settings(self):
@@ -238,26 +252,34 @@ class App(ctk.CTk):
         help_scroll_frame = ctk.CTkScrollableFrame(help_window)
         help_scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # TODO : Finish Q & A
         q_and_a = [
             ("What does Peanut do?", "A system software that organizes and manages files..."),
             ("What is AutoClean?", "Toggle the types of files/data you want to clean and choose how often it does."),
-            ("What is AutoDirect?", "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\n5. Press ‘Save and Start’ on the left sidebar. Your redirect rule is now active!"),
-            ("What is MultiSearch?", "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
+            ("What is AutoDirect?",
+             "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\n5. Press ‘Save and Start’ on the left sidebar. Your redirect rule is now active!"),
+            ("What is MultiSearch?",
+             "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
             ("How can I recover a file that has been deleted?", ""),
-            ("How can I temporarily suspend the program without having to uninstall?", "Press the “Pause” button on the left sidebar to pause Peanut and then press the “Save and Start” button when you’re ready to unpause."),
+            ("How can I temporarily suspend the program without having to uninstall?",
+             "Press the “Pause” button on the left sidebar to pause Peanut and then press the “Save and Start” button when you’re ready to unpause."),
             ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... "),
             ("Will Peanut ever cost money?", "Peanut will never cost money nor require a subscription service.")
         ]
 
         for question, answer in q_and_a:
-            q_label = ctk.CTkLabel(help_scroll_frame, text=question, font=("Arial", 14, "bold"), wraplength=550, anchor="w", justify="left", text_color="#7cb06d")
+            q_label = ctk.CTkLabel(help_scroll_frame, text=question, font=("Arial", 14, "bold"), wraplength=550,
+                                   anchor="w", justify="left", text_color="#7cb06d")
             q_label.pack(fill="x", padx=5, pady=(10, 0), anchor="w")
-            a_label = ctk.CTkLabel(help_scroll_frame, text=answer, font=("Arial", 12), wraplength=550, anchor="w", justify="left")
+            a_label = ctk.CTkLabel(help_scroll_frame, text=answer, font=("Arial", 12), wraplength=550, anchor="w",
+                                   justify="left")
             a_label.pack(fill="x", padx=5, pady=(0, 10), anchor="w")
 
+        # TODO : logs
         see_logs_button = ctk.CTkButton(help_window, text="See Peanut's Logs")
         see_logs_button.pack(side="right", padx=10, pady=10)
-        setup_info_button = ctk.CTkButton(help_window, text="Get Started: Setup System Info", command=self.open_setup_info_popup)
+        setup_info_button = ctk.CTkButton(help_window, text="Get Started: Setup System Info",
+                                          command=self.open_setup_info_popup)
         setup_info_button.pack(side="right", pady=10)
 
     def open_setup_info_popup(self):
@@ -267,17 +289,23 @@ class App(ctk.CTk):
         setup_info_popup.resizable(False, False)
         setup_info_popup.grab_set()
 
-        system_label = ctk.CTkLabel(setup_info_popup, text="Enter info about your PC to improve accuracy and performance.", text_color="#979da2")
+        system_label = ctk.CTkLabel(setup_info_popup,
+                                    text="Enter info about your PC to improve accuracy and performance.",
+                                    text_color="#979da2")
         system_label.grid(row=0, column=0, padx=10, pady=5, columnspan=2, sticky="w")
 
         system_label = ctk.CTkLabel(setup_info_popup, text="Operating System")
         system_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        system_optionmenu = ctk.CTkOptionMenu(setup_info_popup, values=["Windows 10", "Windows 11", "Others unsupported"], font=("Arial", 12))
+        system_optionmenu = ctk.CTkOptionMenu(setup_info_popup,
+                                              values=["Windows 10", "Windows 11", "Others unsupported"],
+                                              font=("Arial", 12))
         system_optionmenu.grid(row=1, column=1, padx=10, pady=5)
 
         webbrowser_label = ctk.CTkLabel(setup_info_popup, text="Main Web Browser")
         webbrowser_label.grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        webbrowser_optionmenu = ctk.CTkOptionMenu(setup_info_popup, values=["Chrome", "Firefox", "Microsoft Edge", "Other"], font=("Arial", 12))
+        webbrowser_optionmenu = ctk.CTkOptionMenu(setup_info_popup,
+                                                  values=["Chrome", "Firefox", "Microsoft Edge", "Other"],
+                                                  font=("Arial", 12))
         webbrowser_optionmenu.grid(row=2, column=1, padx=10, pady=5)
 
         favorite_folders_list = []
@@ -285,18 +313,27 @@ class App(ctk.CTk):
         for i, label in enumerate(folder_labels):
             directory_label = ctk.CTkLabel(setup_info_popup, text=f"{label} Directory")
             directory_label.grid(row=i + 3, column=0, padx=10, pady=5, sticky="w")
-            directory_entry = ctk.CTkEntry(setup_info_popup, placeholder_text=f"Enter your {label.lower()} directory", width=220)
+            directory_entry = ctk.CTkEntry(setup_info_popup, placeholder_text=f"Enter your {label.lower()} directory",
+                                           width=220)
             directory_entry.grid(row=i + 3, column=1, padx=10, pady=5)
             favorite_folders_list.append(directory_entry)
 
-            browse_button_image = ctk.CTkImage(light_image=Image.open("images/3240447.png"), dark_image=Image.open("images/3240447.png"))
-            browse_button = ctk.CTkButton(setup_info_popup, image=browse_button_image, text="", width=20, command=lambda entry=directory_entry: browse_folder(entry))
+            browse_button_image = ctk.CTkImage(light_image=Image.open("images/3240447.png"),
+                                               dark_image=Image.open("images/3240447.png"))
+            browse_button = ctk.CTkButton(setup_info_popup, image=browse_button_image, text="", width=20,
+                                          command=lambda entry=directory_entry: browse_folder(entry))
             browse_button.grid(row=i + 3, column=2, padx=10, pady=5, sticky="w")
 
-        confirm_button = ctk.CTkButton(setup_info_popup, text="Confirm", width=380, command=lambda: self.save_system_info(setup_info_popup, system_optionmenu.get_selected_value(), webbrowser_optionmenu.get_selected_value(), *[entry.get() for entry in favorite_folders_list]))
+        confirm_button = ctk.CTkButton(setup_info_popup, text="Confirm", width=380,
+                                       command=lambda: self.save_system_info(setup_info_popup,
+                                                                             system_optionmenu.get_selected_value(),
+                                                                             webbrowser_optionmenu.get_selected_value(),
+                                                                             *[entry.get() for entry in
+                                                                               favorite_folders_list]))
         confirm_button.grid(row=len(folder_labels) + 3, column=0, padx=10, pady=20, columnspan=2)
 
-    def save_system_info(self, setup_info_popup, os, main_browser, downloads_directory="", desktop_directory="", recycling_bin_directory=""):
+    def save_system_info(self, setup_info_popup, os, main_browser, downloads_directory="", desktop_directory="",
+                         recycling_bin_directory=""):
         if not all([os, main_browser]):
             return
 
@@ -304,6 +341,7 @@ class App(ctk.CTk):
         db_handler.update_system_info(os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser)
 
         setup_info_popup.destroy()
+
 
 class TabView(ctk.CTkTabview):
     def __init__(self, master, **kwargs):
@@ -336,17 +374,24 @@ class TabView(ctk.CTkTabview):
 
         self.ac_freq_label = ctk.CTkLabel(self.ac_frame, text="Clean every")
         self.ac_freq_label.pack(side="top", padx=5)
-        self.ac_freq_menu = ctk.CTkOptionMenu(self.ac_frame, values=["never", "day", "week", "month", "quarter", "year"], command=self.set_clean_frequency)
+        self.ac_freq_menu = ctk.CTkOptionMenu(self.ac_frame,
+                                              values=["never", "day", "week", "month", "quarter", "year"],
+                                              command=self.set_clean_frequency)
         self.ac_freq_menu.pack(side="top", padx=5, pady=(5, 13))
-        self.ac_folders_switch = ctk.CTkSwitch(self.ac_frame, text="Empty folders", command=self.toggle_clean_empty_folders)
+        self.ac_folders_switch = ctk.CTkSwitch(self.ac_frame, text="Empty folders",
+                                               command=self.toggle_clean_empty_folders)
         self.ac_folders_switch.pack(anchor="w", padx=188, pady=3)
-        self.ac_unused_files_switch = ctk.CTkSwitch(self.ac_frame, text="Unused files", command=self.toggle_clean_unused_files)
+        self.ac_unused_files_switch = ctk.CTkSwitch(self.ac_frame, text="Unused files",
+                                                    command=self.toggle_clean_unused_files)
         self.ac_unused_files_switch.pack(anchor="w", padx=188, pady=3)
-        self.ac_duplicate_files_switch = ctk.CTkSwitch(self.ac_frame, text="Duplicate files", command=self.toggle_clean_duplicate_files)
+        self.ac_duplicate_files_switch = ctk.CTkSwitch(self.ac_frame, text="Duplicate files",
+                                                       command=self.toggle_clean_duplicate_files)
         self.ac_duplicate_files_switch.pack(anchor="w", padx=188, pady=3)
-        self.ac_recycling_switch = ctk.CTkSwitch(self.ac_frame, text="Recycling bin", command=self.toggle_clean_recycling_bin)
+        self.ac_recycling_switch = ctk.CTkSwitch(self.ac_frame, text="Recycling bin",
+                                                 command=self.toggle_clean_recycling_bin)
         self.ac_recycling_switch.pack(anchor="w", padx=188, pady=3)
-        self.ac_browser_history_switch = ctk.CTkSwitch(self.ac_frame, text="Browser history", command=self.toggle_clean_browser_history)
+        self.ac_browser_history_switch = ctk.CTkSwitch(self.ac_frame, text="Browser history",
+                                                       command=self.toggle_clean_browser_history)
         self.ac_browser_history_switch.pack(anchor="w", padx=188, pady=3)
 
     def create_autodirect_tab(self):
@@ -357,12 +402,21 @@ class TabView(ctk.CTkTabview):
         self.ad_inner_frame.pack(side="left", fill="both", expand=True)
 
         self.ad_button_frame = ctk.CTkFrame(master=self.tab("AutoDirect"))
-        self.ad_button_frame.grid(row=4, column=0, sticky="ew", padx=(370, 0), pady=5)
-        self.ad_add_button_image = ctk.CTkImage(light_image=Image.open("images/plus_1104323.png"), dark_image=Image.open("images/plus_1104323.png"))
-        self.ad_add_button = ctk.CTkButton(self.ad_button_frame, text="", image=self.ad_add_button_image, width=20, command=self.add_redirect)
-        self.ad_add_button.pack(side="right", padx=5, pady=(10, 5))
-        self.ad_remove_all_button = ctk.CTkButton(self.ad_button_frame, text="remove all", width=80, command=self.remove_all_redirects)
-        self.ad_remove_all_button.pack(side="right", padx=(49, 5), pady=(10, 5))
+        self.ad_button_frame.grid(row=4, column=0, sticky="ew", padx=5, pady=5)
+
+        self.ad_custom_folder_button = ctk.CTkButton(self.ad_button_frame, text="Set Custom Folders", width=140,
+                                                     command=self.open_custom_folder_settings)
+        self.ad_custom_folder_button.grid(row=0, column=0, padx=(5, 252), pady=(10, 5), sticky="w")
+
+        self.ad_remove_all_button = ctk.CTkButton(self.ad_button_frame, text="Remove All", width=80,
+                                                  command=self.remove_all_redirects)
+        self.ad_remove_all_button.grid(row=0, column=1, padx=(5, 5), pady=(10, 5), sticky="e")
+
+        self.ad_add_button_image = ctk.CTkImage(light_image=Image.open("images/plus_1104323.png"),
+                                                dark_image=Image.open("images/plus_1104323.png"))
+        self.ad_add_button = ctk.CTkButton(self.ad_button_frame, text="", image=self.ad_add_button_image, width=20,
+                                           command=self.add_redirect)
+        self.ad_add_button.grid(row=0, column=2, padx=(5, 10), pady=(10, 5), sticky="e")
 
     def create_multisearch_tab(self):
         self.ms_frame = ctk.CTkFrame(master=self.tab("MultiSearch"))
@@ -416,7 +470,6 @@ class TabView(ctk.CTkTabview):
                                               width=20, command=self.open_ms_delete_popup)
         self.ms_delete_button.pack(side="right", padx=5, pady=5)
         create_tooltip(self.ms_delete_button, "Delete all selected items.")
-
 
     ''' AutoClean Functions '''
 
@@ -498,6 +551,7 @@ class TabView(ctk.CTkTabview):
 
     ''' AutoDirect Functions '''
 
+    # TODO : ugly
     def add_redirect(self, keyword="", from_directory="", to_directory="", id=None):
         new_frame = ctk.CTkFrame(self.ad_inner_frame)
         new_frame.pack(side="top", fill="x", padx=5, pady=5)
@@ -518,8 +572,11 @@ class TabView(ctk.CTkTabview):
         ad_redir_key_entry.bind("<FocusIn>", lambda event: self.clear_placeholder(event, "Redirect keyword"))
         ad_redir_key_entry.bind("<FocusOut>", lambda event: self.set_placeholder(event, "Redirect keyword"))
 
-        ad_from_dir_menu = ctk.CTkOptionMenu(new_frame, values=["-- from --", "Downloads folder", "Desktop"],
-                                             font=("Arial", 12))
+        ad_from_dir_menu = ctk.CTkOptionMenu(new_frame,
+                                             values=["-- from --", "Downloads", "Desktop", "custom folder 1",
+                                                     "custom folder 2", "custom folder 3"],
+                                             font=("Arial", 12), command=lambda choice: self.browse_folder(
+                ad_from_dir_menu) if choice == "Custom folder" else None)
         ad_from_dir_menu.pack(side="left", padx=4)
         if from_directory:
             ad_from_dir_menu.set(from_directory)
@@ -555,6 +612,59 @@ class TabView(ctk.CTkTabview):
                 if (keyword, from_directory, to_directory) not in existing_redirects:
                     self.db_handler.add_redirect(keyword, from_directory, to_directory)
 
+    def open_custom_folder_settings(self):
+        custom_folders_popup = ctk.CTkToplevel(self)
+        custom_folders_popup.title("Custom Folder Settings")
+        custom_folders_popup.geometry("460x250")
+        custom_folders_popup.resizable(False, False)
+        custom_folders_popup.grab_set()
+        folder_entries = []
+        custom_folders_description_label = ctk.CTkLabel(custom_folders_popup,
+                                                        text="Select up to 3 folders to choose from as the starting folder for AutoDirects.")
+        custom_folders_description_label.grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 0), sticky="w")
+
+        for i in range(1, 4):
+            folder_label = ctk.CTkLabel(custom_folders_popup, text=f"Custom Folder {i}")
+            folder_label.grid(row=i + 1, column=0, padx=10, pady=10, sticky="w")
+
+            folder_entry = ctk.CTkEntry(custom_folders_popup, placeholder_text=f"custom folder", width=270)
+            folder_entry.grid(row=i + 1, column=1, padx=10, pady=10)
+            folder_entry.insert(0, self.db_handler.get_custom_folder_path(i))
+            folder_entries.append(folder_entry)
+
+            browse_button_image = ctk.CTkImage(light_image=Image.open("images/3240447.png"),
+                                               dark_image=Image.open("images/3240447.png"))
+            browse_button = ctk.CTkButton(custom_folders_popup, image=browse_button_image, text="", width=20,
+                                          command=lambda entry=folder_entry: self.browse_and_set_folder(entry, i))
+            browse_button.grid(row=i + 1, column=2, padx=10, pady=10)
+
+        save_button = ctk.CTkButton(custom_folders_popup, text="Save", width=450,
+                                    command=lambda: self.save_custom_folders(folder_entries))
+        save_button.grid(row=5, column=0, columnspan=4, padx=5, pady=20)
+
+    def browse_and_set_folder(self, entry, index):
+        folder_selected = filedialog.askdirectory()
+        if folder_selected:
+            entry.delete(0, "end")
+            entry.insert(0, folder_selected)
+            folder_name = os.path.basename(folder_selected)
+            self.db_handler.update_custom_folder(index, folder_selected, folder_name)
+            self.update_custom_folder_options()
+
+    def save_custom_folders(self, folder_entries):
+        for i, entry in enumerate(folder_entries, 1):
+            folder_path = entry.get()
+            if folder_path:
+                folder_name = os.path.basename(folder_path)
+                self.db_handler.update_custom_folder(i, folder_path, folder_name)
+        self.update_custom_folder_options()
+
+    def update_custom_folder_options(self):
+        custom_folder_names = [self.db_handler.get_custom_folder_name(i) for i in range(1, 4)]
+        self.custom_folders = ["-- from --", "Downloads", "Desktop"] + custom_folder_names
+        for entry in self.redirect_entries:
+            entry[1].configure(values=self.custom_folders)
+
     def clear_placeholder(self, event, placeholder):
         widget = event.widget
         if widget.get() == placeholder:
@@ -576,7 +686,8 @@ class TabView(ctk.CTkTabview):
 
         frame.pack_forget()
         frame.destroy()
-        self.redirect_entries = [(e1, e2, e3) for e1, e2, e3 in self.redirect_entries if e1.winfo_exists() and e2.winfo_exists() and e3.winfo_exists()]
+        self.redirect_entries = [(e1, e2, e3) for e1, e2, e3 in self.redirect_entries if
+                                 e1.winfo_exists() and e2.winfo_exists() and e3.winfo_exists()]
 
     def remove_all_redirects(self):
         self.db_handler.delete_all_redirects()
@@ -612,6 +723,7 @@ class TabView(ctk.CTkTabview):
                 self.db_handler.add_redirect(keyword, from_directory, to_directory)
 
     ''' MultiSearch Functions '''
+
     def perform_search(self):
         self.clear_search_results()
         directory = self.ms_directory_entry.get()
@@ -638,12 +750,14 @@ class TabView(ctk.CTkTabview):
         ms_delete_popup.resizable(False, False)
         ms_delete_popup.grab_set()
 
-        ms_warning_image = ctk.CTkImage(light_image=Image.open("images/4096970.png"), dark_image=Image.open("images/4096970.png"), size=(50, 50))
+        ms_warning_image = ctk.CTkImage(light_image=Image.open("images/4096970.png"),
+                                        dark_image=Image.open("images/4096970.png"), size=(50, 50))
         ms_warning_image_label = ctk.CTkLabel(ms_delete_popup, image=ms_warning_image, text="")
         ms_warning_image_label.pack(side="top")
         ms_warning_label = ctk.CTkLabel(ms_delete_popup, text="Are you sure?\n\nThis action cannot be undone.")
         ms_warning_label.pack(side="top", padx=10)
-        ms_yes_button = ctk.CTkButton(ms_delete_popup, text="Yes, delete selected items", width=150, command=lambda: self.confirm_delete(ms_delete_popup, selected_files))
+        ms_yes_button = ctk.CTkButton(ms_delete_popup, text="Yes, delete selected items", width=150,
+                                      command=lambda: self.confirm_delete(ms_delete_popup, selected_files))
         ms_yes_button.pack(side="left", padx=5)
         ms_no_button = ctk.CTkButton(ms_delete_popup, text="No", width=150, command=ms_delete_popup.destroy)
         ms_no_button.pack(side="right", padx=5)
@@ -665,12 +779,15 @@ class TabView(ctk.CTkTabview):
         ms_copy_popup.resizable(False, False)
         ms_copy_popup.grab_set()
 
-        ms_name_file_image = ctk.CTkImage(light_image=Image.open("images/5762171.png"), dark_image=Image.open("images/5762171.png"), size=(50, 50))
+        ms_name_file_image = ctk.CTkImage(light_image=Image.open("images/5762171.png"),
+                                          dark_image=Image.open("images/5762171.png"), size=(50, 50))
         ms_name_file_label = ctk.CTkLabel(ms_copy_popup, image=ms_name_file_image, text="")
         ms_name_file_label.pack(side="top", pady=10)
         ms_name_file_entry = ctk.CTkEntry(ms_copy_popup, placeholder_text="Name new folder", width=200)
         ms_name_file_entry.pack(side="top", padx=10)
-        ms_yes_button = ctk.CTkButton(ms_copy_popup, text="Copy", width=85, command=lambda: self.confirm_copy(ms_copy_popup, selected_files, ms_name_file_entry.get()))
+        ms_yes_button = ctk.CTkButton(ms_copy_popup, text="Copy", width=85,
+                                      command=lambda: self.confirm_copy(ms_copy_popup, selected_files,
+                                                                        ms_name_file_entry.get()))
         ms_yes_button.pack(side="right", padx=26)
         ms_no_button = ctk.CTkButton(ms_copy_popup, text="Cancel", width=85, command=ms_copy_popup.destroy)
         ms_no_button.pack(side="right")
@@ -697,7 +814,8 @@ class TabView(ctk.CTkTabview):
         ms_rename_popup.resizable(False, False)
         ms_rename_popup.grab_set()
 
-        ms_warning_image = ctk.CTkImage(light_image=Image.open("images/caution.png"), dark_image=Image.open("images/caution.png"), size=(50, 50))
+        ms_warning_image = ctk.CTkImage(light_image=Image.open("images/caution.png"),
+                                        dark_image=Image.open("images/caution.png"), size=(50, 50))
         ms_warning_image_label = ctk.CTkLabel(ms_rename_popup, image=ms_warning_image, text="")
         ms_warning_image_label.pack(side="top")
         ms_warning_label = ctk.CTkLabel(ms_rename_popup, text="Enter words for Renaming")
@@ -706,7 +824,10 @@ class TabView(ctk.CTkTabview):
         ms_find_pattern_entry.pack(side="top", padx=10, pady=5)
         ms_replace_pattern_entry = ctk.CTkEntry(ms_rename_popup, placeholder_text="replace", width=200)
         ms_replace_pattern_entry.pack(side="top", padx=10, pady=5)
-        ms_yes_button = ctk.CTkButton(ms_rename_popup, text="Rename", width=85, command=lambda: self.confirm_rename(ms_rename_popup, selected_files, ms_find_pattern_entry.get(), ms_replace_pattern_entry.get()))
+        ms_yes_button = ctk.CTkButton(ms_rename_popup, text="Rename", width=85,
+                                      command=lambda: self.confirm_rename(ms_rename_popup, selected_files,
+                                                                          ms_find_pattern_entry.get(),
+                                                                          ms_replace_pattern_entry.get()))
         ms_yes_button.pack(side="right", padx=26, pady=10)
         ms_no_button = ctk.CTkButton(ms_rename_popup, text="Cancel", width=85, command=ms_rename_popup.destroy)
         ms_no_button.pack(side="right", pady=10)
@@ -724,10 +845,12 @@ class TabView(ctk.CTkTabview):
                 selected_files.append(widget.cget("text"))
         return selected_files
 
+
 def main():
     ctk.set_default_color_theme("green")
     app = App()
     app.mainloop()
+
 
 if __name__ == "__main__":
     main()

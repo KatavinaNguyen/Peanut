@@ -95,6 +95,13 @@ class DatabaseHandler:
                         user_id, status, ui_size, theme
                      ) VALUES (1, 0, 100, 'system')''')
 
+        # Custom Folders table
+        c.execute('''CREATE TABLE IF NOT EXISTS AutoDirectCustomFolders (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL,
+                        name TEXT NOT NULL
+                     )''')
+
         conn.commit()
         conn.close()
 
@@ -136,9 +143,6 @@ class DatabaseHandler:
         conn.close()
         return rows
 
-
-    ''' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% EDIT BELOW %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% '''
-
     def check_status(self):
         conn = sqlite3.connect('peanut.db')
         c = conn.cursor()
@@ -148,7 +152,6 @@ class DatabaseHandler:
         conn.close()
         return status[0] if status else None
 
-    # TODO FUNCTION TO SET THE PROGRAM STATUS, ACTUAL IMPLEMENT
     def set_status(self, new_status):
         conn = sqlite3.connect('peanut.db')
         c = conn.cursor()
@@ -160,7 +163,7 @@ class DatabaseHandler:
         status_map = {0: "paused", 1: "running"}
         print(f"Program {status_map.get(new_status, 'unknown')}.")
 
-    # TODO FUNCTION TO PRINT FAILED ACTIONS, PRINT FOR USER MESSAGE
+    # TODO : temporary function until error handling is implemented
     def print_failed_actions(self):
         conn = sqlite3.connect('peanut.db')
         c = conn.cursor()
@@ -327,3 +330,26 @@ class DatabaseHandler:
 
         conn.close()
         return error[0] if error else None
+
+    def execute_query(self, query, params=()):
+        with sqlite3.connect(self.db_file) as conn:
+            c = conn.cursor()
+            c.execute(query, params)
+            conn.commit()
+            return c.fetchall()
+
+    def update_custom_folder(self, index, path, name):
+        query = f"UPDATE AutoDirectCustomFolders SET path = ?, name = ? WHERE id = ?"
+        self.execute_query(query, (path, name, index))
+
+    def get_custom_folder_name(self, index):
+        query = f"SELECT name FROM AutoDirectCustomFolders WHERE id = ?"
+        result = self.execute_query(query, (index,))
+        return result[0][0] if result else f"Custom Folder {index}"
+
+    def get_custom_folder_path(self, index):
+        query = f"SELECT path FROM AutoDirectCustomFolders WHERE id = ?"
+        result = self.execute_query(query, (index,))
+        return result[0][0] if result else ""
+
+
