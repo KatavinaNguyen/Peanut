@@ -75,41 +75,40 @@ class App(ctk.CTk):
         self.tab_view = TabView(master=self)
         self.update_next_cleaning_time_label()
         self.show_blank = True
-        self.show_progress = True
-        self.show_error = True
-        self.load_saved_status()
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.show_progress = False
+        self.show_error = False
 
-        # TODO : ugly
-        '''User Feedback Frame'''
         self.user_feedback_frame = ctk.CTkFrame(self)
         self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
-        self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="")
+        self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="", font=("Arial", 8))
         self.user_feedback_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
         self.user_feedback_frame.grid_columnconfigure(0, weight=1)
         self.user_feedback_frame.grid_columnconfigure(1, weight=0)
 
-        if self.show_progress:
-            self.user_feedback_frame = ctk.CTkFrame(self)
-            self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
-            self.bouncing_progress_bar = ctk.CTkProgressBar(self.user_feedback_frame, mode="indeterminate",
-                                                            indeterminate_speed=1)
+        self.update_user_feedback()
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        self.destroy()
+
+    def update_user_feedback(self):
+        if self.is_paused:
+            message = "Peanut is currently paused."
+        elif self.show_error:
+            latest_error = self.db_handler.get_latest_error()
+            if latest_error:
+                message = f"An error has occurred: {latest_error['description']}"
+            else:
+                message = "An error has occurred..."
+        elif self.show_progress:
+            self.bouncing_progress_bar = ctk.CTkProgressBar(self.user_feedback_frame, mode="indeterminate", indeterminate_speed=1)
             self.bouncing_progress_bar.grid(row=0, column=0, sticky="ew", padx=20)
             self.bouncing_progress_bar.start()
-            self.progress_label = ctk.CTkLabel(self.user_feedback_frame, text="AutoClean in progress....",
-                                               font=("Arial", 8))
-            self.progress_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
-            self.user_feedback_frame.grid_columnconfigure(0, weight=1)
-            self.user_feedback_frame.grid_columnconfigure(1, weight=0)
+            message = "AutoClean in progress...."
+        else:
+            message = ""
 
-        if self.show_error:
-            self.user_feedback_frame = ctk.CTkFrame(self)
-            self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
-            self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="An error has occurred...",
-                                                    font=("Arial", 8))
-            self.user_feedback_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
-            self.user_feedback_frame.grid_columnconfigure(0, weight=1)
-            self.user_feedback_frame.grid_columnconfigure(1, weight=0)
+        self.user_feedback_label.configure(text=message)
 
     def load_saved_status(self):
         status = self.db_handler.load_status()
@@ -167,8 +166,7 @@ class App(ctk.CTk):
         create_tooltip(self.help_button, "Open the FAQ page.")
 
     def toggle_start_pause(self):
-        current_text = self.start_pause_button.cget("text")
-        if current_text == "Start":
+        if self.is_paused:
             self.start_operations()
         else:
             self.pause_operations()
