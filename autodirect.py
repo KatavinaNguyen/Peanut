@@ -32,6 +32,17 @@ class AutoDirectHandler:
                     if keyword in filename:
                         source_path = os.path.join(from_directory, filename)
                         destination_path = os.path.join(to_directory, filename)
+
+                        # Check for conflicts and rename the file if necessary
+                        if os.path.exists(destination_path):
+                            base, extension = os.path.splitext(filename)
+                            counter = 1
+                            new_destination_path = os.path.join(to_directory, f"{base} ({counter}){extension}")
+                            while os.path.exists(new_destination_path):
+                                counter += 1
+                                new_destination_path = os.path.join(to_directory, f"{base} ({counter}){extension}")
+                            destination_path = new_destination_path
+
                         shutil.move(source_path, destination_path)
             time.sleep(5)  # Add a sleep interval to avoid continuous high CPU usage
 
