@@ -449,8 +449,8 @@ class TabView(ctk.CTkTabview):
                                                   command=self.open_ms_rename_popup)
         self.ms_select_all_button.pack(side="left", padx=5, pady=1)
 
-        self.ms_rename_button_image = ctk.CTkImage(light_image=Image.open("images/pdf_3240446.png"),
-                                                   dark_image=Image.open("images/pdf_3240446.png"))
+        self.ms_rename_button_image = ctk.CTkImage(light_image=Image.open("images/pencil.png"),
+                                                   dark_image=Image.open("images/pencil.png"))
         self.ms_rename_button = ctk.CTkButton(self.ms_button_frame, text="", image=self.ms_rename_button_image,
                                               width=20, command=self.open_ms_rename_popup)
         self.ms_rename_button.pack(side="right", padx=5, pady=5)
@@ -464,8 +464,8 @@ class TabView(ctk.CTkTabview):
         self.ms_copy_button.pack(side="right", padx=5, pady=5)
         create_tooltip(self.ms_copy_button, "Copy all selected items into a new folder.")
 
-        self.ms_delete_button_image = ctk.CTkImage(light_image=Image.open("images/6067148.png"),
-                                                   dark_image=Image.open("images/6067148.png"))
+        self.ms_delete_button_image = ctk.CTkImage(light_image=Image.open("images/delete.png"),
+                                                   dark_image=Image.open("images/delete.png"))
         self.ms_delete_button = ctk.CTkButton(self.ms_button_frame, text="", image=self.ms_delete_button_image,
                                               width=20, command=self.open_ms_delete_popup)
         self.ms_delete_button.pack(side="right", padx=5, pady=5)

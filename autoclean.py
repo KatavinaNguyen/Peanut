@@ -118,7 +118,15 @@ class AutoCleanHandler(FileSystemEventHandler):
                 file_path = os.path.join(root, file)
                 file_hash = self.hash_file(file_path)
                 if file_hash in seen_files:
-                    os.remove(file_path)
+                    existing_file_path = seen_files[file_hash]
+                    # Compare the last modified times
+                    if os.path.getmtime(file_path) > os.path.getmtime(existing_file_path):
+                        # The current file is newer, so delete the existing one
+                        os.remove(existing_file_path)
+                        seen_files[file_hash] = file_path
+                    else:
+                        # The existing file is newer, so delete the current one
+                        os.remove(file_path)
                 else:
                     seen_files[file_hash] = file_path
 
