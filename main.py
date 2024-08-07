@@ -157,7 +157,7 @@ class App(ctk.CTk):
         self.create_sidebar_theme_scaling()
 
     def create_sidebar_buttons(self):
-        self.start_pause_button = ctk.CTkButton(self.sidebar_frame, text="Start", fg_color="gray",
+        self.start_pause_button = ctk.CTkButton(self.sidebar_frame, text="Start", fg_color="#2EB77C",
                                                 command=self.toggle_start_pause)
         self.start_pause_button.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
         create_tooltip(self.start_pause_button, "Click to start AutoClean and AutoDirect. Click again to pause.")
@@ -179,7 +179,7 @@ class App(ctk.CTk):
         self.auto_clean_handler.resume_operations()
         self.auto_direct_handler.resume_operations()
         # Update button text and color
-        self.start_pause_button.configure(text="Pause", fg_color="green")
+        self.start_pause_button.configure(text="Pause", fg_color="gray")
         create_tooltip(self.start_pause_button, "Click to pause the program. Click again to resume.")
         # Save status to the database
         self.db_handler.save_status("running")
@@ -190,7 +190,7 @@ class App(ctk.CTk):
         self.auto_clean_handler.pause_operations()
         self.auto_direct_handler.pause_operations()
         # Update button text and color
-        self.start_pause_button.configure(text="Start", fg_color="gray")
+        self.start_pause_button.configure(text="Start", fg_color="#2EB77C")
         create_tooltip(self.start_pause_button, "Click to start the program. Click again to pause.")
         # Save status to the database
         self.db_handler.save_status("paused")
