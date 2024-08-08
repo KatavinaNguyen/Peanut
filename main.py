@@ -9,8 +9,6 @@ from autoclean import AutoCleanHandler
 from autodirect import AutoDirectHandler
 from multisearch import MultiSearchHandler
 from database import DatabaseHandler
-
-
 class ToolTip:
     def __init__(self, widget):
         self.widget = widget
@@ -38,8 +36,6 @@ class ToolTip:
         self.tip_window = None
         if tw:
             tw.destroy()
-
-
 def create_tooltip(widget, message):
     tool_tip = ToolTip(widget)
 
@@ -51,14 +47,11 @@ def create_tooltip(widget, message):
 
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
-
-
 def browse_folder(entry):
     folder_selected = filedialog.askdirectory()
     if folder_selected:
         entry.delete(0, "end")
         entry.insert(0, folder_selected)
-
 
 class App(ctk.CTk):
     def __init__(self, *args, **kwargs):
@@ -68,15 +61,14 @@ class App(ctk.CTk):
         self.geometry(f"{self.original_width}x{self.original_height}")
         self.title("Peanut File Manager")
         self.iconbitmap("images/peanut.ico")
-        self.is_paused = False
+        self.db_handler = DatabaseHandler()
         self.tab_view = TabView(master=self)
-        self.auto_clean_handler = AutoCleanHandler()
-        self.auto_direct_handler = AutoCleanHandler()
-        self.tab_view = TabView(master=self)
-        self.update_next_cleaning_time_label()
-        self.show_blank = True
+        self.is_paused = self.load_saved_status()
         self.show_progress = False
         self.show_error = False
+        self.auto_clean_handler = AutoCleanHandler()
+        self.auto_direct_handler = AutoCleanHandler()
+        self.update_next_cleaning_time_label()
 
         self.user_feedback_frame = ctk.CTkFrame(self)
         self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
@@ -101,13 +93,16 @@ class App(ctk.CTk):
             else:
                 message = "An error has occurred..."
         elif self.show_progress:
-            self.bouncing_progress_bar = ctk.CTkProgressBar(self.user_feedback_frame, mode="indeterminate", indeterminate_speed=1)
-            self.bouncing_progress_bar.grid(row=0, column=0, sticky="ew", padx=20)
-            self.bouncing_progress_bar.start()
+            if not hasattr(self, 'bouncing_progress_bar'):
+                self.bouncing_progress_bar = ctk.CTkProgressBar(self.user_feedback_frame, mode="indeterminate", indeterminate_speed=1)
+                self.bouncing_progress_bar.grid(row=0, column=0, sticky="ew", padx=20)
+                self.bouncing_progress_bar.start()
             message = "AutoClean in progress...."
         else:
             message = ""
-
+            if hasattr(self, 'bouncing_progress_bar'):
+                self.bouncing_progress_bar.grid_forget()
+                del self.bouncing_progress_bar
         self.user_feedback_label.configure(text=message)
 
     def load_saved_status(self):
@@ -172,39 +167,43 @@ class App(ctk.CTk):
             self.pause_operations()
 
     def start_operations(self):
-        # Save settings and start AutoClean and AutoDirect
-        self.user_status_event("save_and_start")
         self.auto_clean_handler.resume_operations()
         self.auto_direct_handler.resume_operations()
-        # Update button text and color
+        self.is_paused = False
+        self.update_user_feedback()
         self.start_pause_button.configure(text="Pause", fg_color="gray")
         create_tooltip(self.start_pause_button, "Click to pause the program. Click again to resume.")
-        # Save status to the database
         self.db_handler.save_status("running")
 
     def pause_operations(self):
-        # Pause AutoClean and AutoDirect
-        self.user_status_event("pause")
         self.auto_clean_handler.pause_operations()
         self.auto_direct_handler.pause_operations()
-        # Update button text and color
+        self.is_paused = True
+        self.update_user_feedback()
         self.start_pause_button.configure(text="Start", fg_color="#2EB77C")
         create_tooltip(self.start_pause_button, "Click to start the program. Click again to pause.")
-        # Save status to the database
         self.db_handler.save_status("paused")
 
-    def user_status_event(self, status):
-        if status == "save_and_start":
-            # Save current settings and start AutoClean and AutoDirect
-            self.load_application_status()
-        elif status == "pause":
-            # Pause AutoClean and AutoDirect
-            self.auto_clean_handler.pause_operations()
-            self.auto_direct_handler.pause_operations()
+    def toggle_start_pause(self):
+        if self.is_paused:
+            self.start_operations()
+        else:
+            self.pause_operations()
 
-    def load_application_status(self):
-        self.auto_clean_handler.resume_operations()
-        self.auto_direct_handler.resume_operations()
+    def load_saved_status(self):
+        status = self.db_handler.load_status()
+        return status != "running"  # If status is "running", return False to indicate it's not paused
+
+    def on_closing(self):
+        self.destroy()
+
+
+
+
+
+
+
+
 
     def create_sidebar_theme_scaling(self):
         self.theme_label_image = ctk.CTkImage(light_image=Image.open("images/13125625.png"),
@@ -339,8 +338,6 @@ class App(ctk.CTk):
         db_handler.update_system_info(os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser)
 
         setup_info_popup.destroy()
-
-
 class TabView(ctk.CTkTabview):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
@@ -359,7 +356,6 @@ class TabView(ctk.CTkTabview):
         self.create_multisearch_tab()
 
         self.load_autoclean_settings()
-
     def create_autoclean_tab(self):
         self.ac_frame = ctk.CTkFrame(master=self.tab("AutoClean"))
         self.ac_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=3)
@@ -391,7 +387,6 @@ class TabView(ctk.CTkTabview):
         self.ac_browser_history_switch = ctk.CTkSwitch(self.ac_frame, text="Browser history",
                                                        command=self.toggle_clean_browser_history)
         self.ac_browser_history_switch.pack(anchor="w", padx=188, pady=3)
-
     def create_autodirect_tab(self):
         self.redirect_entries = []
         self.ad_scroll_frame = ctk.CTkScrollableFrame(master=self.tab("AutoDirect"), height=280)
@@ -415,7 +410,6 @@ class TabView(ctk.CTkTabview):
         self.ad_add_button = ctk.CTkButton(self.ad_button_frame, text="", image=self.ad_add_button_image, width=20,
                                            command=self.add_redirect)
         self.ad_add_button.grid(row=0, column=2, padx=(5, 10), pady=(10, 5), sticky="e")
-
     def create_multisearch_tab(self):
         self.ms_frame = ctk.CTkFrame(master=self.tab("MultiSearch"))
         self.ms_frame.grid(row=1, column=1, sticky="nsew", padx=0, pady=3)  # Removed side padding
@@ -468,9 +462,7 @@ class TabView(ctk.CTkTabview):
                                               width=20, command=self.open_ms_delete_popup)
         self.ms_delete_button.pack(side="right", padx=5, pady=5)
         create_tooltip(self.ms_delete_button, "Delete all selected items.")
-
     ''' AutoClean Functions '''
-
     def load_autoclean_settings(self):
         settings = self.db_handler.get_autoclean_settings()
         if settings:
@@ -507,49 +499,38 @@ class TabView(ctk.CTkTabview):
 
             # Schedule the next update for the label
             self.ac_next_cleaning_label.after(60000, self.load_autoclean_settings)  # Update every minute
-
     def set_clean_frequency(self, frequency):
         self.db_handler.update_autoclean_settings(frequency=frequency)
         self.auto_clean_handler.set_clean_frequency(frequency)
         self.update_next_cleaning_time_label()
-
     def update_next_cleaning_time_label(self):
         next_cleaning_time = self.auto_clean_handler.get_next_cleaning_time()
         self.ac_next_cleaning_label.configure(text=f"Next Clean in\n\n{next_cleaning_time}")
         self.ac_next_cleaning_label.after(60000, self.update_next_cleaning_time_label)  # Update every minute
-
     def clean_now(self):
         self.auto_clean_handler.clean_now()
         self.update_next_cleaning_time_label()
-
     def toggle_clean_empty_folders(self):
         value = int(self.ac_folders_switch.get())
         self.db_handler.update_autoclean_settings(empty_folders=value)
         self.auto_clean_handler.toggle_clean_flag('clean_empty_folders_flag', value)
-
     def toggle_clean_unused_files(self):
         value = int(self.ac_unused_files_switch.get())
         self.db_handler.update_autoclean_settings(unused_files=value)
         self.auto_clean_handler.toggle_clean_flag('clean_unused_files_flag', value)
-
     def toggle_clean_duplicate_files(self):
         value = int(self.ac_duplicate_files_switch.get())
         self.db_handler.update_autoclean_settings(duplicate_files=value)
         self.auto_clean_handler.toggle_clean_flag('clean_duplicate_files_flag', value)
-
     def toggle_clean_recycling_bin(self):
         value = int(self.ac_recycling_switch.get())
         self.db_handler.update_autoclean_settings(recycling_bin=value)
         self.auto_clean_handler.toggle_clean_flag('clean_recycling_bin_flag', value)
-
     def toggle_clean_browser_history(self):
         value = int(self.ac_browser_history_switch.get())
         self.db_handler.update_autoclean_settings(browser_history=value)
         self.auto_clean_handler.toggle_clean_flag('clean_browser_history_flag', value)
-
     ''' AutoDirect Functions '''
-
-    # TODO : ugly
     def add_redirect(self, keyword="", from_directory="", to_directory="", id=None):
         new_frame = ctk.CTkFrame(self.ad_inner_frame)
         new_frame.pack(side="top", fill="x", padx=5, pady=5)
@@ -599,17 +580,16 @@ class TabView(ctk.CTkTabview):
 
         self.redirect_entries.append((ad_redir_key_entry, ad_from_dir_menu, ad_to_dir_entry))
 
-        # Only add to the database if the entries are not blank and id is None
+        # Only add to the database if the entries are not placeholder values and id is None
         if id is None:
             keyword = ad_redir_key_entry.get().strip()
             from_directory = ad_from_dir_menu.get().strip()
             to_directory = ad_to_dir_entry.get().strip()
-            if keyword and from_directory and to_directory:
+            if keyword != "Redirect keyword" and from_directory != "-- from --" and to_directory != "to this folder":
                 # Check if redirect already exists before adding
                 existing_redirects = self.db_handler.get_redirects()
                 if (keyword, from_directory, to_directory) not in existing_redirects:
                     self.db_handler.add_redirect(keyword, from_directory, to_directory)
-
     def open_custom_folder_settings(self):
         custom_folders_popup = ctk.CTkToplevel(self)
         custom_folders_popup.title("Custom Folder Settings")
@@ -639,7 +619,6 @@ class TabView(ctk.CTkTabview):
         save_button = ctk.CTkButton(custom_folders_popup, text="Save", width=450,
                                     command=lambda: self.save_custom_folders(folder_entries))
         save_button.grid(row=5, column=0, columnspan=4, padx=5, pady=20)
-
     def browse_and_set_folder(self, entry, index):
         folder_selected = filedialog.askdirectory()
         if folder_selected:
@@ -648,7 +627,6 @@ class TabView(ctk.CTkTabview):
             folder_name = os.path.basename(folder_selected)
             self.db_handler.update_custom_folder(index, folder_selected, folder_name)
             self.update_custom_folder_options()
-
     def save_custom_folders(self, folder_entries):
         for i, entry in enumerate(folder_entries, 1):
             folder_path = entry.get()
@@ -656,24 +634,20 @@ class TabView(ctk.CTkTabview):
                 folder_name = os.path.basename(folder_path)
                 self.db_handler.update_custom_folder(i, folder_path, folder_name)
         self.update_custom_folder_options()
-
     def update_custom_folder_options(self):
         custom_folder_names = [self.db_handler.get_custom_folder_name(i) for i in range(1, 4)]
         self.custom_folders = ["-- from --", "Downloads", "Desktop"] + custom_folder_names
         for entry in self.redirect_entries:
             entry[1].configure(values=self.custom_folders)
-
     def clear_placeholder(self, event, placeholder):
         widget = event.widget
         if widget.get() == placeholder:
             widget.delete(0, "end")
-
     def set_placeholder(self, event, placeholder):
         widget = event.widget
         if widget.get() == "":
             widget.insert(0, placeholder)
             widget.config(fg="grey")
-
     def remove_redirect(self, frame, ad_redir_key_entry, ad_from_dir_menu, ad_to_dir_entry):
         keyword = ad_redir_key_entry.get()
         from_directory = ad_from_dir_menu.get()
@@ -686,7 +660,6 @@ class TabView(ctk.CTkTabview):
         frame.destroy()
         self.redirect_entries = [(e1, e2, e3) for e1, e2, e3 in self.redirect_entries if
                                  e1.winfo_exists() and e2.winfo_exists() and e3.winfo_exists()]
-
     def remove_all_redirects(self):
         self.db_handler.delete_all_redirects()
         self.auto_direct_handler.remove_mapping('', '', '')
@@ -694,23 +667,10 @@ class TabView(ctk.CTkTabview):
         for child in self.ad_inner_frame.winfo_children():
             child.destroy()
         self.redirect_entries = []
-
     def load_redirects(self):
         redirects = self.db_handler.get_redirects()
         for keyword, from_directory, to_directory in redirects:
             self.add_redirect(keyword, from_directory, to_directory)
-
-    def save_and_start(self):
-        self.save_redirects()
-        self.auto_direct_handler.clear_mappings()
-        for entry in self.redirect_entries:
-            keyword = entry[0].get().strip()
-            from_directory = entry[1].get().strip()
-            to_directory = entry[2].get().strip()
-            if keyword and from_directory and to_directory:
-                self.auto_direct_handler.add_mapping(keyword, from_directory, to_directory)
-        self.auto_direct_handler.start()
-
     def save_redirects(self):
         self.db_handler.delete_all_redirects()
         for entry in self.redirect_entries:
@@ -719,9 +679,7 @@ class TabView(ctk.CTkTabview):
             to_directory = entry[2].get().strip()
             if keyword and from_directory and to_directory:
                 self.db_handler.add_redirect(keyword, from_directory, to_directory)
-
     ''' MultiSearch Functions '''
-
     def perform_search(self):
         self.clear_search_results()
         directory = self.ms_directory_entry.get()
@@ -731,11 +689,9 @@ class TabView(ctk.CTkTabview):
             for file in files_found:
                 result_checkbox = ctk.CTkCheckBox(self.search_results_frame, text=file)
                 result_checkbox.pack(anchor="w", padx=15, pady=5)
-
     def clear_search_results(self):
         for widget in self.search_results_frame.winfo_children():
             widget.destroy()
-
     def open_ms_delete_popup(self):
         selected_files = self.get_selected_files()
 
@@ -759,12 +715,10 @@ class TabView(ctk.CTkTabview):
         ms_yes_button.pack(side="left", padx=5)
         ms_no_button = ctk.CTkButton(ms_delete_popup, text="No", width=150, command=ms_delete_popup.destroy)
         ms_no_button.pack(side="right", padx=5)
-
     def confirm_delete(self, popup, files):
         self.multi_search_handler.multi_delete_files(files)
         popup.destroy()
         self.perform_search()
-
     def open_ms_copy_popup(self):
         selected_files = self.get_selected_files()
 
@@ -789,7 +743,6 @@ class TabView(ctk.CTkTabview):
         ms_yes_button.pack(side="right", padx=26)
         ms_no_button = ctk.CTkButton(ms_copy_popup, text="Cancel", width=85, command=ms_copy_popup.destroy)
         ms_no_button.pack(side="right")
-
     def confirm_copy(self, popup, files, folder_name):
         if not folder_name:
             return
@@ -799,7 +752,6 @@ class TabView(ctk.CTkTabview):
 
         self.multi_search_handler.multi_copy_files(files, new_folder)
         popup.destroy()
-
     def open_ms_rename_popup(self):
         selected_files = self.get_selected_files()
 
@@ -829,26 +781,20 @@ class TabView(ctk.CTkTabview):
         ms_yes_button.pack(side="right", padx=26, pady=10)
         ms_no_button = ctk.CTkButton(ms_rename_popup, text="Cancel", width=85, command=ms_rename_popup.destroy)
         ms_no_button.pack(side="right", pady=10)
-
     def confirm_rename(self, popup, files, find_pattern, replace_pattern):
         if find_pattern and replace_pattern:
             self.multi_search_handler.multi_rename_files(files, find_pattern, replace_pattern)
             popup.destroy()
             self.perform_search()
-
     def get_selected_files(self):
         selected_files = []
         for widget in self.search_results_frame.winfo_children():
             if isinstance(widget, ctk.CTkCheckBox) and widget.get() == 1:
                 selected_files.append(widget.cget("text"))
         return selected_files
-
-
 def main():
     ctk.set_default_color_theme("green")
     app = App()
     app.mainloop()
-
-
 if __name__ == "__main__":
     main()

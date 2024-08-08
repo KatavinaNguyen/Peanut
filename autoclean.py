@@ -19,7 +19,7 @@ class AutoCleanHandler(FileSystemEventHandler):
         self.clean_recycling_bin_flag = False
         self.clean_browser_history_flag = False
         self.frequency = None
-        self.paused = False
+        self.paused = True
         self.db_handler = DatabaseHandler()
 
         # Load the settings from the database

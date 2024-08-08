@@ -33,7 +33,7 @@ class DatabaseHandler:
         # UserSettings table
         c.execute('''CREATE TABLE IF NOT EXISTS UserSettings (
                         user_id INTEGER PRIMARY KEY,
-                        status INTEGER NOT NULL DEFAULT 0,  -- 0: paused, 1: running
+                        status TEXT NOT NULL DEFAULT 'paused',  
                         ui_size INTEGER,
                         theme TEXT
                      )''')

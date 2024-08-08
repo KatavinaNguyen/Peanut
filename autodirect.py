@@ -6,7 +6,7 @@ import time
 class AutoDirectHandler:
     def __init__(self):
         self.file_mappings = []
-        self.paused = False
+        self.paused = True
         self.running_thread = None
 
     def add_mapping(self, keyword, from_dir, to_dir):
