@@ -1,5 +1,5 @@
-# Peanut Automated File Manager
-![](images/peanut.ico) Meet Peanut, your friendly file-managing squirrel monkey! Peanut is here to make your life easier by helping you clean up unused files, organize them efficiently, and quickly find exactly what you're looking for. Whatever your file management needs, Peanut's got you covered!
+# Peanut Automated File Manager  <img src="images/peanut.ico" width="35">
+Meet Peanut, your friendly file-managing squirrel monkey! Peanut is here to make your life easier by helping you clean up unused files, organize them efficiently, and quickly find exactly what you're looking for. Whatever your file management needs, Peanut's got you covered!
 ## Features 
 - **AutoClean** - Automatically clean up empty folders, unused files, duplicate files, and more to keep your system tidy and fast.<br>
 - **AutoDirect** - Effortlessly organize your files by setting up rules based on keywords.<br>
