@@ -1,233 +1,259 @@
 import sqlite3
-from datetime import datetime, timedelta
+import datetime
 
 class DatabaseHandler:
-    def __init__(self, db_file='peanut.db'):
-        self.db_file = db_file
+    def __init__(self):
+        self.db_file = 'peanut.db'
         self.create_tables()
 
     def create_tables(self):
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
 
-        # SystemInfo table
-        c.execute('''CREATE TABLE IF NOT EXISTS SystemInfo (
-                        info_id INTEGER PRIMARY KEY,
-                        os TEXT NOT NULL,
-                        downloads_directory TEXT NOT NULL,
-                        desktop_directory TEXT NOT NULL,
-                        recycling_bin_directory TEXT NOT NULL,
-                        main_browser TEXT NOT NULL
-                     )''')
-
-        # Actions table
-        c.execute('''CREATE TABLE IF NOT EXISTS Actions (
-                        action_id INTEGER PRIMARY KEY,
-                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
-                        action_type TEXT NOT NULL,
-                        file_path TEXT NOT NULL,
-                        description TEXT NOT NULL,
-                        status TEXT NOT NULL
-                     )''')
-
-        # UserSettings table
         c.execute('''CREATE TABLE IF NOT EXISTS UserSettings (
                         user_id INTEGER PRIMARY KEY,
-                        status TEXT NOT NULL DEFAULT 'paused',  
+                        status TEXT,
                         ui_size INTEGER,
                         theme TEXT
                      )''')
 
-        # AutoCleanSettings table
+        c.execute('''CREATE TABLE IF NOT EXISTS Redirects (
+                        redirect_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        keyword TEXT,
+                        from_directory TEXT,
+                        to_directory TEXT
+                     )''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS AutoCleanSettings (
-                        setting_id INTEGER PRIMARY KEY,
-                        frequency TEXT NOT NULL,
-                        previous_clean_time DATETIME,
-                        next_clean_time DATETIME,
-                        empty_folders BOOLEAN NOT NULL DEFAULT 0,
-                        unused_files BOOLEAN NOT NULL DEFAULT 0,
-                        duplicate_files BOOLEAN NOT NULL DEFAULT 0,
-                        recycling_bin BOOLEAN NOT NULL DEFAULT 0,
-                        browser_history BOOLEAN NOT NULL DEFAULT 0
-                     )''')
-        # Check if the table is empty and insert the initial row
-        c.execute('SELECT COUNT(*) FROM AutoCleanSettings')
-        if c.fetchone()[0] == 0:
-            current_time = datetime.now().isoformat()
-            next_clean_time = (datetime.now() + timedelta(days=30)).isoformat()
-            c.execute('''INSERT INTO AutoCleanSettings (frequency, previous_clean_time, next_clean_time, empty_folders, 
-                        unused_files, duplicate_files, recycling_bin, browser_history) 
-                        VALUES (?, ?, ?, 0, 0, 0, 0, 0)''', ('never', current_time, next_clean_time))
-        conn.commit()
-
-        # AutoDirects table
-        c.execute('''CREATE TABLE IF NOT EXISTS AutoDirects (
-                        redirect_id INTEGER PRIMARY KEY,
-                        keyword TEXT NOT NULL,
-                        from_directory TEXT NOT NULL,
-                        to_directory TEXT NOT NULL
-                     )''')
-
-        # Default AutoCleanSettings
-        c.execute('''INSERT OR IGNORE INTO AutoCleanSettings (
-                        setting_id, frequency, previous_clean_time, next_clean_time,
-                        empty_folders, unused_files, duplicate_files,
-                        recycling_bin, browser_history
-                     ) VALUES (1, 'month', NULL, NULL, 0, 0, 0, 0, 0)''')
-
-        # Default UserSettings
-        c.execute('''INSERT OR IGNORE INTO UserSettings (
-                        user_id, status, ui_size, theme
-                     ) VALUES (1, 0, 100, 'system')''')
-
-        # Custom Folders table
-        c.execute('''CREATE TABLE IF NOT EXISTS AutoDirectCustomFolders (
                         id INTEGER PRIMARY KEY,
-                        path TEXT NOT NULL,
-                        name TEXT NOT NULL
+                        frequency TEXT,
+                        clean_empty_folders_flag BOOLEAN,
+                        clean_unused_files_flag BOOLEAN,
+                        clean_duplicate_files_flag BOOLEAN,
+                        clean_recycling_bin_flag BOOLEAN,
+                        clean_browser_history_flag BOOLEAN,
+                        next_cleaning_time TEXT
+                     )''')
+
+        c.execute('''CREATE TABLE IF NOT EXISTS ErrorLogs (
+                        error_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT,
+                        description TEXT
+                     )''')
+
+        c.execute('''CREATE TABLE IF NOT EXISTS CustomFolders (
+                        folder_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        folder_path TEXT,
+                        folder_name TEXT
                      )''')
 
         conn.commit()
         conn.close()
 
-    def execute_query(self, query, params=()):
-        with sqlite3.connect(self.db_file) as conn:
-            c = conn.cursor()
-            c.execute(query, params)
-            conn.commit()
-            return c.fetchall()
+    # System Settings
+    def load_status(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute("SELECT status FROM UserSettings WHERE user_id = 1")
+        result = c.fetchone()
+        conn.close()
+        return result[0] if result else None
 
     def save_status(self, status):
-        self.execute_query('''UPDATE UserSettings SET status = ? WHERE user_id = 1''', (status,))
-
-    def load_status(self):
-        result = self.execute_query('''SELECT status FROM UserSettings WHERE user_id = 1''')
-        return result[0][0] if result else 0  # Default to 0 (paused) if no status is found
-
-    def log_action(self, action_type, file_path, description, success=True):
-        status = "SUCCESS" if success else "FAILURE"
-        self.execute_query('''INSERT INTO Actions (action_type, file_path, description, status)
-                              VALUES (?, ?, ?, ?)''', (action_type, file_path, description, status))
-
-    def get_latest_error(self):
-        result = self.execute_query('''SELECT description FROM Actions WHERE status = 'FAILURE' ORDER BY timestamp DESC LIMIT 1''')
-        return result[0][0] if result else None
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO UserSettings (user_id, status) VALUES (1, ?)", (status,))
+        conn.commit()
+        conn.close()
 
     def get_user_settings(self):
-        result = self.execute_query('''SELECT status, ui_size, theme FROM UserSettings WHERE user_id = 1''')
-        if result:
-            return {'status': result[0][0], 'ui_size': result[0][1], 'theme': result[0][2]}
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT status, ui_size, theme FROM UserSettings WHERE user_id = 1''')
+        settings = c.fetchone()
+        conn.close()
+        if settings:
+            return {'status': settings[0], 'ui_size': settings[1], 'theme': settings[2]}
         else:
             return None
 
     def update_user_settings(self, status=None, ui_size=None, theme=None):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+
         if status is not None:
-            self.execute_query('''UPDATE UserSettings SET status = ? WHERE user_id = 1''', (status,))
+            c.execute('''UPDATE UserSettings SET status = ? WHERE user_id = 1''', (status,))
         if ui_size is not None:
-            self.execute_query('''UPDATE UserSettings SET ui_size = ? WHERE user_id = 1''', (ui_size,))
+            c.execute('''UPDATE UserSettings SET ui_size = ? WHERE user_id = 1''', (ui_size,))
         if theme is not None:
-            self.execute_query('''UPDATE UserSettings SET theme = ? WHERE user_id = 1''', (theme,))
+            c.execute('''UPDATE UserSettings SET theme = ? WHERE user_id = 1''', (theme,))
+        conn.commit()
+        conn.close()
 
-    def update_system_info(self, os=None, downloads_directory=None, desktop_directory=None,
-                           recycling_bin_directory=None, main_browser=None):
-        # Check if there's already a record
-        result = self.execute_query('''SELECT COUNT(*) FROM SystemInfo''')
-        count = result[0][0]
+    # AutoClean
+    def get_clean_frequency(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT frequency FROM AutoCleanSettings WHERE id = 1''')
+        result = c.fetchone()
+        conn.close()
+        return result[0] if result else None
 
-        if count == 0:
-            # Insert new record if none exists
-            self.execute_query('''INSERT INTO SystemInfo (
-                                     os, downloads_directory, desktop_directory, 
-                                     recycling_bin_directory, main_browser
-                                  ) VALUES (?, ?, ?, ?, ?)''',
-                               (os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser))
-        else:
-            # Update existing record
-            self.execute_query('''UPDATE SystemInfo
-                                  SET os = COALESCE(?, os), 
-                                      downloads_directory = COALESCE(?, downloads_directory), 
-                                      desktop_directory = COALESCE(?, desktop_directory), 
-                                      recycling_bin_directory = COALESCE(?, recycling_bin_directory), 
-                                      main_browser = COALESCE(?, main_browser)
-                                  WHERE info_id = 1''',
-                               (os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser))
+    def update_clean_frequency(self, frequency):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''INSERT OR REPLACE INTO AutoCleanSettings (id, frequency) VALUES (1, ?)''', (frequency,))
+        conn.commit()
+        conn.close()
 
-    def get_system_info(self):
-        result = self.execute_query('''SELECT os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser 
-                                       FROM SystemInfo WHERE info_id = 1''')
-        if result:
-            return {'os': result[0][0], 'downloads_directory': result[0][1], 'desktop_directory': result[0][2],
-                    'recycling_bin_directory': result[0][3], 'main_browser': result[0][4]}
-        else:
-            return None
+    def get_clean_flags(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT clean_empty_folders_flag, clean_unused_files_flag, clean_duplicate_files_flag,
+                            clean_recycling_bin_flag, clean_browser_history_flag
+                     FROM AutoCleanSettings WHERE id = 1''')
+        result = c.fetchone()
+        conn.close()
+        return {
+            'clean_empty_folders_flag': result[0],
+            'clean_unused_files_flag': result[1],
+            'clean_duplicate_files_flag': result[2],
+            'clean_recycling_bin_flag': result[3],
+            'clean_browser_history_flag': result[4]
+        } if result else None
+
+    def update_clean_flags(self, autoclean_frequency, clean_empty_folders_flag, clean_unused_files_flag, clean_duplicate_files_flag,
+                           clean_recycling_bin_flag, clean_browser_history_flag, next_cleaning_time):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO AutoCleanSettings (id, clean_empty_folders_flag, clean_unused_files_flag, 
+                                              clean_duplicate_files_flag, clean_recycling_bin_flag, 
+                                              clean_browser_history_flag, frequency, next_cleaning_time)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        ''', (clean_empty_folders_flag, clean_unused_files_flag, clean_duplicate_files_flag, clean_recycling_bin_flag,
+              clean_browser_history_flag, autoclean_frequency, next_cleaning_time))
+        conn.commit()
+        conn.close()
+
+    def get_next_cleaning_time(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT next_cleaning_time FROM AutoCleanSettings WHERE id = 1''')
+        result = c.fetchone()
+        conn.close()
+        return datetime.datetime.fromisoformat(result[0]) if result and result[0] else None
+
+    def update_next_cleaning_time(self, next_cleaning_time):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''INSERT OR REPLACE INTO AutoCleanSettings (id, next_cleaning_time) VALUES (1, ?)''',
+                  (next_cleaning_time.isoformat(),))
+        conn.commit()
+        conn.close()
 
     def get_autoclean_settings(self):
-        result = self.execute_query('SELECT * FROM AutoCleanSettings WHERE setting_id=1')
-        if result:
-            row = result[0]
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''
+            SELECT frequency, clean_empty_folders_flag, clean_unused_files_flag, 
+                   clean_duplicate_files_flag, clean_recycling_bin_flag, clean_browser_history_flag, 
+                   next_cleaning_time FROM AutoCleanSettings WHERE id = 1
+        ''')
+        settings = c.fetchone()
+        conn.close()
+        if settings:
             return {
-                'frequency': row[1],
-                'previous_clean_time': datetime.fromisoformat(row[2]) if row[2] else None,
-                'next_clean_time': datetime.fromisoformat(row[3]) if row[3] else None,
-                'empty_folders': bool(row[4]),
-                'unused_files': bool(row[5]),
-                'duplicate_files': bool(row[6]),
-                'recycling_bin': bool(row[7]),
-                'browser_history': bool(row[8])
+                'autoclean_frequency': settings[0],
+                'clean_empty_folders_flag': settings[1],
+                'clean_unused_files_flag': settings[2],
+                'clean_duplicate_files_flag': settings[3],
+                'clean_recycling_bin_flag': settings[4],
+                'clean_browser_history_flag': settings[5],
+                'next_cleaning_time': settings[6]
             }
         else:
             return None
 
-    def update_autoclean_settings(self, frequency=None, empty_folders=None, unused_files=None,
-                                  duplicate_files=None, recycling_bin=None, browser_history=None,
-                                  previous_clean_time=None, next_clean_time=None):
-        if frequency:
-            self.execute_query('UPDATE AutoCleanSettings SET frequency = ? WHERE setting_id = 1', (frequency,))
-        if empty_folders is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET empty_folders = ? WHERE setting_id = 1', (empty_folders,))
-        if unused_files is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET unused_files = ? WHERE setting_id = 1', (unused_files,))
-        if duplicate_files is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET duplicate_files = ? WHERE setting_id = 1', (duplicate_files,))
-        if recycling_bin is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET recycling_bin = ? WHERE setting_id = 1', (recycling_bin,))
-        if browser_history is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET browser_history = ? WHERE setting_id = 1', (browser_history,))
-        if previous_clean_time is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET previous_clean_time = ? WHERE setting_id = 1', (previous_clean_time.isoformat(),))
-        if next_clean_time is not None:
-            self.execute_query('UPDATE AutoCleanSettings SET next_clean_time = ? WHERE setting_id = 1', (next_clean_time.isoformat(),))
-
     def add_redirect(self, keyword, from_directory, to_directory):
-        self.execute_query('''INSERT INTO AutoDirects (keyword, from_directory, to_directory)
-                              VALUES (?, ?, ?)''', (keyword, from_directory, to_directory))
-
-    def delete_redirect(self, keyword, from_directory, to_directory):
-        self.execute_query('''DELETE FROM AutoDirects WHERE keyword = ? AND from_directory = ? AND to_directory = ?''',
-                           (keyword, from_directory, to_directory))
-
-    def delete_all_redirects(self):
-        self.execute_query('''DELETE FROM AutoDirects''')
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''INSERT INTO Redirects (keyword, from_directory, to_directory)
+                     VALUES (?, ?, ?)''', (keyword, from_directory, to_directory))
+        conn.commit()
+        conn.close()
 
     def get_redirects(self):
-        result = self.execute_query('''SELECT keyword, from_directory, to_directory FROM AutoDirects''')
-        return result if result else []
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT * FROM Redirects''')
+        redirects = c.fetchall()
+        conn.close()
+        return redirects
+
+    def delete_redirect(self, keyword, from_directory, to_directory):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''DELETE FROM Redirects WHERE keyword = ? AND from_directory = ? AND to_directory = ?''',
+                  (keyword, from_directory, to_directory))
+        conn.commit()
+        conn.close()
+
+    def clear_all_redirects(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''DELETE FROM Redirects''')
+        conn.commit()
+        conn.close()
+
+    def get_custom_folder_path(self, folder_id):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('SELECT folder_path FROM CustomFolders WHERE folder_id = ?', (folder_id,))
+        path = c.fetchone()
+        conn.close()
+        return path[0] if path else None
+
+    def update_custom_folder(self, index, folder_path, folder_name):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''INSERT OR REPLACE INTO CustomFolders (folder_id, folder_path, folder_name) VALUES (?, ?, ?)''',
+                  (index, folder_path, folder_name))
+        conn.commit()
+        conn.close()
 
     def get_custom_folder_name(self, index):
-        result = self.execute_query('''SELECT name FROM AutoDirectCustomFolders WHERE id = ?''', (index,))
-        return result[0][0] if result else f"Custom folder {index}"
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT folder_name FROM CustomFolders WHERE folder_id = ?''', (index,))
+        result = c.fetchone()
+        conn.close()
+        return result[0] if result else f"Custom folder {index}"
 
-    def get_custom_folder_path(self, index):
-        result = self.execute_query('''SELECT path FROM AutoDirectCustomFolders WHERE id = ?''', (index,))
-        return result[0][0] if result else ""
+    # Error Handling
+    def log_action(self, action_type, src_path, dst_path):  # TODO : add log_action for multisearch
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        timestamp = datetime.datetime.now().isoformat()
+        c.execute('''INSERT INTO ActionLogs (action_type, src_path, dst_path, timestamp)
+                     VALUES (?, ?, ?, ?)''', (action_type, src_path, dst_path, timestamp))
+        conn.commit()
+        conn.close()
 
-    def update_custom_folder(self, index, path, name):
-        self.execute_query('''INSERT OR REPLACE INTO AutoDirectCustomFolders (id, path, name)
-                              VALUES (?, ?, ?)''', (index, path, name))
+    def log_error(self, description):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        timestamp = datetime.datetime.now().isoformat()
+        c.execute('''INSERT INTO ErrorLogs (timestamp, description) VALUES (?, ?)''', (timestamp, description))
+        conn.commit()
+        conn.close()
 
-    def get_error_logs(self, limit=10):
-        result = self.execute_query('''SELECT timestamp, action_type, description, status 
-                                       FROM Actions 
-                                       WHERE status = 'FAILURE' 
-                                       ORDER BY timestamp DESC LIMIT ?''', (limit,))
-        return result if result else []
+    def get_latest_error(self):
+        conn = sqlite3.connect(self.db_file)
+        c = conn.cursor()
+        c.execute('''SELECT description FROM ErrorLogs ORDER BY error_id DESC LIMIT 1''')
+        result = c.fetchone()
+        conn.close()
+        return {'description': result[0]} if result else None
+
+    # TODO : wipe system/delete db for factory reset

@@ -1,13 +1,19 @@
 import os
 import shutil
-import threading
+import hashlib
+import datetime
+import schedule
 import time
+from database import DatabaseHandler
 
 class AutoDirectHandler:
     def __init__(self):
+        self.db_handler = DatabaseHandler()
+        self.redirects = self.db_handler.get_redirects()
+        self.is_paused = False
+        self.load_scheduled_redirects()
         self.file_mappings = []
-        self.paused = True
-        self.running_thread = None
+        self.paused = False
 
     def add_mapping(self, keyword, from_dir, to_dir):
         self.file_mappings.append((keyword, from_dir, to_dir))
@@ -19,44 +25,47 @@ class AutoDirectHandler:
     def clear_mappings(self):
         self.file_mappings = []
 
-    def auto_direct_files(self):
-        while not self.paused:
-            for keyword, from_directory, to_directory in self.file_mappings:
-                if not os.path.exists(to_directory):
-                    os.makedirs(to_directory)
+    def load_scheduled_redirects(self):
+        schedule.clear()
+        self.redirects = self.db_handler.get_redirects()
+        for redirect in self.redirects:
+            schedule.every(10).minutes.do(self.check_redirect, redirect)
 
-                for filename in os.listdir(from_directory):
-                    if self.paused:
-                        return
+    def check_redirect(self, redirect):
+        if self.is_paused:
+            return
 
-                    if keyword in filename:
-                        source_path = os.path.join(from_directory, filename)
-                        destination_path = os.path.join(to_directory, filename)
+        keyword, from_directory, to_directory = redirect[1], redirect[2], redirect[3]
+        # if one of the files does not exist, skip this redirect and
+        if not os.path.exists(from_directory) or not os.path.exists(to_directory):
+            return
 
-                        # Check for conflicts and rename the file if necessary
-                        if os.path.exists(destination_path):
-                            base, extension = os.path.splitext(filename)
-                            counter = 1
-                            new_destination_path = os.path.join(to_directory, f"{base} ({counter}){extension}")
-                            while os.path.exists(new_destination_path):
-                                counter += 1
-                                new_destination_path = os.path.join(to_directory, f"{base} ({counter}){extension}")
-                            destination_path = new_destination_path
+        # log action for later use in error handling and displaying error messages
+        for root, _, files in os.walk(from_directory):
+            for file in files:
+                if keyword in file:
+                    src_path = os.path.join(root, file)
+                    dst_path = os.path.join(to_directory, file)
+                    dst_path = self.resolve_conflicts(dst_path)
+                    shutil.move(src_path, dst_path)
+                    self.db_handler.log_action("redirect", src_path, dst_path)
 
-                        shutil.move(source_path, destination_path)
-            time.sleep(5)  # Add a sleep interval to avoid continuous high CPU usage
+    def resolve_conflicts(self, dst_path):
+        if os.path.exists(dst_path):
+            base, ext = os.path.splitext(dst_path)
+            i = 1
+            while os.path.exists(f"{base} ({i}){ext}"):
+                i += 1
+            dst_path = f"{base} ({i}){ext}"
+        return dst_path
 
     def pause_operations(self):
-        self.paused = True
+        self.is_paused = True
 
     def resume_operations(self):
-        self.paused = False
-        if not self.running_thread or not self.running_thread.is_alive():
-            self.running_thread = threading.Thread(target=self.auto_direct_files)
-            self.running_thread.start()
+        self.is_paused = False
+        self.load_scheduled_redirects()
 
-    def start(self):
-        self.resume_operations()
-
-    def stop(self):
-        self.pause_operations()
+    def update_redirects(self):
+        self.redirects = self.db_handler.get_redirects()
+        self.load_scheduled_redirects()
