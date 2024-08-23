@@ -1,0 +1,4 @@
+customtkinter==5.1.1
+Pillow==9.4.0
+schedule==1.1.0
+watchdog==2.1.9
