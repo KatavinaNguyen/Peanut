@@ -2,7 +2,6 @@ import datetime
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
-import schedule
 from PIL import Image
 import os
 from autoclean import AutoCleanHandler
@@ -168,12 +167,6 @@ class App(ctk.CTk):
         self.help_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
         create_tooltip(self.help_button, "Open the FAQ page.")
 
-    def toggle_start_pause(self):
-        if self.is_paused:
-            self.start_operations()
-        else:
-            self.pause_operations()
-
     def start_operations(self):
         self.auto_clean_handler.resume_operations()
         self.auto_direct_handler.resume_operations()
@@ -226,20 +219,27 @@ class App(ctk.CTk):
         self.scaling_menu.grid(row=8, column=0, padx=20, pady=(5, 20), sticky="ew")
 
     def apply_settings(self):
+        settings = self.db_handler.get_user_settings()
         ctk.set_appearance_mode(f"{self.theme}")
-        self.change_scaling_event(f"{self.ui_size}%")
+        if settings:
+            self.change_scaling_event(f"{settings['ui_size'] or 100}%")
+        else:
+            self.change_scaling_event("100%")
 
     def change_theme_event(self, new_appearance_mode: str):
         self.db_handler.update_user_settings(theme=new_appearance_mode)
         ctk.set_appearance_mode(new_appearance_mode)
 
     def change_scaling_event(self, new_scaling: str):
-        new_scaling_float = int(new_scaling.replace("%", "")) / 100
-        self.db_handler.update_user_settings(ui_size=int(new_scaling.replace("%", "")))
-        ctk.set_widget_scaling(new_scaling_float)
-        new_width = int(self.original_width * new_scaling_float)
-        new_height = int(self.original_height * new_scaling_float)
-        self.geometry(f"{new_width}x{new_height}")
+        if new_scaling is None or new_scaling == 'None':
+            new_scaling = "100%"  # Default to 100% if 'None'
+        else:
+            new_scaling_float = int(new_scaling.replace("%", "")) / 100
+            self.db_handler.update_user_settings(ui_size=int(new_scaling.replace("%", "")))
+            ctk.set_widget_scaling(new_scaling_float)
+            new_width = int(self.original_width * new_scaling_float)
+            new_height = int(self.original_height * new_scaling_float)
+            self.geometry(f"{new_width}x{new_height}")
 
     def open_help_window(self):
         help_window = ctk.CTkToplevel(self)
@@ -251,13 +251,15 @@ class App(ctk.CTk):
 
         # TODO : Finish Q & A
         q_and_a = [
-            ("What does Peanut do?", "A system software that organizes and manages files..."),
+            ("What does Peanut do?",
+             "Peanut is a system software that helps you organize and manage your files efficiently. "
+             "It includes features like AutoClean to automatically clean up unused files and AutoDirect to redirect files "
+             "based on keywords. Additionally, it provides MultiSearch to quickly find, rename, delete, or copy files."),
             ("What is AutoClean?", "Toggle the types of files/data you want to clean and choose how often it does."),
             ("What is AutoDirect?",
              "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\n5. Press ‘Save and Start’ on the left sidebar. Your redirect rule is now active!"),
             ("What is MultiSearch?",
              "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
-            ("How can I recover a file that has been deleted?", ""),
             ("How can I temporarily suspend the program without having to uninstall?",
              "Press the “Pause” button on the left sidebar to pause Peanut and then press the “Save and Start” button when you’re ready to unpause."),
             ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... "),
@@ -272,12 +274,9 @@ class App(ctk.CTk):
                                    justify="left")
             a_label.pack(fill="x", padx=5, pady=(0, 10), anchor="w")
 
-        # TODO : logs
-        see_logs_button = ctk.CTkButton(help_window, text="See Peanut's Logs")
-        see_logs_button.pack(side="right", padx=10, pady=10)
         setup_info_button = ctk.CTkButton(help_window, text="Get Started: Setup System Info",
                                           command=self.open_setup_info_popup)
-        setup_info_button.pack(side="right", pady=10)
+        setup_info_button.pack(side="right", pady=10, padx=10)
 
     def open_setup_info_popup(self):
         setup_info_popup = ctk.CTkToplevel(self)
@@ -352,6 +351,7 @@ class TabView(ctk.CTkTabview):
         self.add("AutoClean")
         self.add("AutoDirect")
         self.add("MultiSearch")
+        self.clean_empty_folders_var = tk.BooleanVar(value=False)
 
         self.create_autoclean_tab()
         self.create_autodirect_tab()
@@ -393,7 +393,7 @@ class TabView(ctk.CTkTabview):
 
     def create_autodirect_tab(self):
         self.redirect_entries = []
-        self.ad_scroll_frame = ctk.CTkScrollableFrame(master=self.tab("AutoDirect"), height=280)
+        self.ad_scroll_frame = ctk.CTkScrollableFrame(master=self.tab("AutoDirect"), width=300, height=280)
         self.ad_scroll_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.ad_inner_frame = ctk.CTkFrame(self.ad_scroll_frame)
         self.ad_inner_frame.pack(side="left", fill="both", expand=True)
@@ -487,7 +487,6 @@ class TabView(ctk.CTkTabview):
             next_cleaning_time = settings.get('next_clean_time', None)
             if next_cleaning_time:
                 try:
-                    # Ensure next_cleaning_time is a string before converting it
                     if isinstance(next_cleaning_time, datetime.datetime):
                         next_cleaning_time = next_cleaning_time.isoformat()
                     next_cleaning_time = datetime.datetime.fromisoformat(next_cleaning_time)
@@ -508,11 +507,11 @@ class TabView(ctk.CTkTabview):
 
     def set_clean_frequency(self, frequency):
         self.db_handler.update_clean_flags(
-            clean_empty_folders_flag=self.clean_empty_folders_var.get(),
-            clean_unused_files_flag=self.clean_unused_files_var.get(),
-            clean_duplicate_files_flag=self.clean_duplicate_files_var.get(),
-            clean_recycling_bin_flag=self.clean_recycling_bin_var.get(),
-            clean_browser_history_flag=self.clean_browser_history_var.get(),
+            clean_empty_folders_flag=self.ac_folders_switch.get(),
+            clean_unused_files_flag=self.ac_unused_files_switch.get(),
+            clean_duplicate_files_flag=self.ac_duplicate_files_switch.get(),
+            clean_recycling_bin_flag=self.ac_recycling_switch.get(),
+            clean_browser_history_flag=self.ac_browser_history_switch.get(),
         )
         self.auto_clean_handler.set_clean_frequency(frequency)
         self.update_next_cleaning_time_label()
@@ -526,70 +525,41 @@ class TabView(ctk.CTkTabview):
         self.auto_clean_handler.clean_now()
         self.update_next_cleaning_time_label()
 
+    def toggle_autoclean_feature(self, feature_name, value):
+        try:
+            setattr(self.auto_clean_handler, feature_name, value)
+            self.auto_clean_handler.save_settings()
+            self.db_handler.update_clean_flags(
+                autoclean_frequency=self.auto_clean_handler.frequency,
+                clean_empty_folders_flag=self.auto_clean_handler.clean_empty_folders_flag,
+                clean_unused_files_flag=self.auto_clean_handler.clean_unused_files_flag,
+                clean_duplicate_files_flag=self.auto_clean_handler.clean_duplicate_files_flag,
+                clean_recycling_bin_flag=self.auto_clean_handler.clean_recycling_bin_flag,
+                clean_browser_history_flag=self.auto_clean_handler.clean_browser_history_flag,
+                next_cleaning_time=self.auto_clean_handler.next_cleaning_time
+            )
+        except Exception as e:
+            print(f"Failed to toggle {feature_name}: {e}")
+
     def toggle_clean_empty_folders(self):
         value = int(self.ac_folders_switch.get())
-        self.db_handler.update_clean_flags(
-            autoclean_frequency=self.auto_clean_handler.selected_frequency,
-            clean_empty_folders_flag=value,
-            clean_unused_files_flag=self.clean_unused_files_var.get(),
-            clean_duplicate_files_flag=self.clean_duplicate_files_var.get(),
-            clean_recycling_bin_flag=self.clean_recycling_bin_var.get(),
-            clean_browser_history_flag=self.clean_browser_history_var.get(),
-            next_cleaning_time=self.auto_clean_handler.next_cleaning_time
-        )
-        self.auto_clean_handler.toggle_clean_flag('clean_empty_folders_flag', value)
+        self.toggle_autoclean_feature('clean_empty_folders_flag', value)
 
     def toggle_clean_unused_files(self):
         value = int(self.ac_unused_files_switch.get())
-        self.db_handler.update_clean_flags(
-            autoclean_frequency=self.auto_clean_handler.selected_frequency,
-            clean_empty_folders_flag=self.clean_empty_folders_var.get(),
-            clean_unused_files_flag=value,
-            clean_duplicate_files_flag=self.clean_duplicate_files_var.get(),
-            clean_recycling_bin_flag=self.clean_recycling_bin_var.get(),
-            clean_browser_history_flag=self.clean_browser_history_var.get(),
-            next_cleaning_time=self.auto_clean_handler.next_cleaning_time
-        )
-        self.auto_clean_handler.toggle_clean_flag('clean_unused_files_flag', value)
+        self.toggle_autoclean_feature('clean_unused_files_flag', value)
 
     def toggle_clean_duplicate_files(self):
         value = int(self.ac_duplicate_files_switch.get())
-        self.db_handler.update_clean_flags(
-            autoclean_frequency=self.auto_clean_handler.selected_frequency,
-            clean_empty_folders_flag=self.clean_empty_folders_var.get(),
-            clean_unused_files_flag=self.clean_unused_files_var.get(),
-            clean_duplicate_files_flag=value,
-            clean_recycling_bin_flag=self.clean_recycling_bin_var.get(),
-            clean_browser_history_flag=self.clean_browser_history_var.get(),
-            next_cleaning_time=self.auto_clean_handler.next_cleaning_time
-        )
-        self.auto_clean_handler.toggle_clean_flag('clean_duplicate_files_flag', value)
+        self.toggle_autoclean_feature('clean_duplicate_files_flag', value)
 
     def toggle_clean_recycling_bin(self):
         value = int(self.ac_recycling_switch.get())
-        self.db_handler.update_clean_flags(
-            autoclean_frequency=self.auto_clean_handler.selected_frequency,
-            clean_empty_folders_flag=self.clean_empty_folders_var.get(),
-            clean_unused_files_flag=self.clean_unused_files_var.get(),
-            clean_duplicate_files_flag=self.clean_duplicate_files_var.get(),
-            clean_recycling_bin_flag=value,
-            clean_browser_history_flag=self.clean_browser_history_var.get(),
-            next_cleaning_time=self.auto_clean_handler.next_cleaning_time
-        )
-        self.auto_clean_handler.toggle_clean_flag('clean_recycling_bin_flag', value)
+        self.toggle_autoclean_feature('clean_recycling_bin_flag', value)
 
     def toggle_clean_browser_history(self):
         value = int(self.ac_browser_history_switch.get())
-        self.db_handler.update_clean_flags(
-            autoclean_frequency=self.auto_clean_handler.selected_frequency,
-            clean_empty_folders_flag=self.clean_empty_folders_var.get(),
-            clean_unused_files_flag=self.clean_unused_files_var.get(),
-            clean_duplicate_files_flag=self.clean_duplicate_files_var.get(),
-            clean_recycling_bin_flag=self.clean_recycling_bin_var.get(),
-            clean_browser_history_flag=value,
-            next_cleaning_time=self.auto_clean_handler.next_cleaning_time
-        )
-        self.auto_clean_handler.toggle_clean_flag('clean_browser_history_flag', value)
+        self.toggle_autoclean_feature('clean_browser_history_flag', value)
 
     ''' AutoDirect Functions '''
 
@@ -729,7 +699,7 @@ class TabView(ctk.CTkTabview):
         to_directory = ad_to_dir_entry.get()
 
         self.db_handler.delete_redirect(keyword, from_directory, to_directory)
-        self.auto_direct_handler.remove_mapping(keyword, from_directory, to_directory)  # TODO : auto_direct_handler rempve_mapping to db
+        self.auto_direct_handler.remove_mapping(keyword, from_directory, to_directory)
 
         frame.pack_forget()
         frame.destroy()

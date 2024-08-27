@@ -1,9 +1,6 @@
 import os
 import shutil
-import hashlib
-import datetime
 import schedule
-import time
 from database import DatabaseHandler
 
 class AutoDirectHandler:

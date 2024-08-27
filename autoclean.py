@@ -4,7 +4,6 @@ import hashlib
 import schedule
 import threading
 import time
-import shutil
 from database import DatabaseHandler
 
 class AutoCleanHandler:
