@@ -223,11 +223,10 @@ class App(ctk.CTk):
              "based on keywords. Additionally, it provides MultiSearch to quickly find, rename, delete, or copy files."),
             ("What is AutoClean?", "Toggle the types of files/data you want to clean and choose how often it does."),
             ("What is AutoDirect?",
-             "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\n5. Press ‘Save and Start’ on the left sidebar. Your redirect rule is now active!"),
+             "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\nYour redirect rule is now active!"),
             ("What is MultiSearch?",
              "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
-            ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... "),
-            ("Will Peanut ever cost money?", "Peanut will never cost money nor require a subscription service.")
+            ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... ")
         ]
 
         for question, answer in q_and_a:
