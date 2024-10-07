@@ -65,34 +65,31 @@ class App(ctk.CTk):
         self.original_width = 790
         self.original_height = 460
         self.geometry(f"{self.original_width}x{self.original_height}")
-        self.title("Peanut File Manager")
+        self.title("Peanut Automated File Manager")
         self.iconbitmap("images/peanut.ico")
         self.db_handler = DatabaseHandler()
         self.tab_view = TabView(master=self)
-        self.is_paused = self.load_saved_status()
         self.show_progress = False
         self.show_error = False
         self.auto_clean_handler = AutoCleanHandler()
-        self.auto_direct_handler = AutoCleanHandler()
+        self.auto_direct_handler = AutoDirectHandler()
+        self.auto_clean_handler.load_settings()
         self.update_next_cleaning_time_label()
-
         self.user_feedback_frame = ctk.CTkFrame(self)
         self.user_feedback_frame.grid(row=2, column=1, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
         self.user_feedback_label = ctk.CTkLabel(self.user_feedback_frame, text="", font=("Arial", 8))
         self.user_feedback_label.grid(row=0, column=1, padx=(10, 20), sticky="w")
         self.user_feedback_frame.grid_columnconfigure(0, weight=1)
         self.user_feedback_frame.grid_columnconfigure(1, weight=0)
-
         self.update_user_feedback()
-        self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def on_closing(self):
+        self.auto_clean_handler.save_settings()
+        self.auto_direct_handler.save_settings()
         self.destroy()
 
     def update_user_feedback(self):
-        if self.is_paused:
-            message = "Peanut is currently paused."
-        elif self.show_error:
+        if self.show_error:
             latest_error = self.db_handler.get_latest_error()
             if latest_error:
                 message = f"An error has occurred: {latest_error['description']}"
@@ -112,20 +109,10 @@ class App(ctk.CTk):
                 del self.bouncing_progress_bar
         self.user_feedback_label.configure(text=message)
 
-    def load_saved_status(self):
-        status = self.db_handler.load_status()
-        if status == "running":
-            self.start_operations()
-        elif status == "paused":
-            self.pause_operations()
-
     def update_next_cleaning_time_label(self):
         next_cleaning_time = self.auto_clean_handler.get_next_cleaning_time()
         self.tab_view.ac_next_cleaning_label.configure(text=f"Next Clean in\n\n{next_cleaning_time}")
-        self.tab_view.ac_next_cleaning_label.after(600000,
-                                                   self.update_next_cleaning_time_label)  # Update every 10 minutes
-
-        # Sidebar Menu
+        self.tab_view.ac_next_cleaning_label.after(600000, self.update_next_cleaning_time_label)  # Update every 10 minutes
         self.db_handler = DatabaseHandler()
         settings = self.db_handler.get_user_settings()
         if settings:
@@ -136,64 +123,45 @@ class App(ctk.CTk):
             self.user_status = 0
             self.ui_size = 100
             self.theme = 'system'
-
         self.create_sidebar()
-
         self.tab_view = TabView(master=self)
         self.tab_view.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
-
         self.apply_settings()
         self.tab_view.load_redirects()
+
+    def load_settings(self):
+        settings = self.db_handler.get_autoclean_settings()
+        if settings:
+            self.clean_empty_folders_flag = settings['clean_empty_folders_flag']
+            self.clean_unused_files_flag = settings['clean_unused_files_flag']
+            self.clean_duplicate_files_flag = settings['clean_duplicate_files_flag']
+            self.clean_recycling_bin_flag = settings['clean_recycling_bin_flag']
+            self.clean_browser_history_flag = settings['clean_browser_history_flag']
+            self.frequency = settings['autoclean_frequency']
+            next_cleaning_time_str = settings['next_cleaning_time']
+            if next_cleaning_time_str:
+                self.next_cleaning_time = datetime.datetime.fromisoformat(next_cleaning_time_str)
+            else:
+                self.next_cleaning_time = None
 
     def create_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.grid_rowconfigure(0, weight=1)
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
-
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Peanut", font=("Helvetica", 20, "bold"),
-                                       text_color="#2EB77C")
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Peanut", font=("Helvetica", 20, "bold"), text_color="#2EB77C")
         self.logo_label.grid(row=0, column=0, padx=18, pady=(20, 10))
         self.create_sidebar_buttons()
         self.create_sidebar_theme_scaling()
 
     def create_sidebar_buttons(self):
-        self.start_pause_button = ctk.CTkButton(self.sidebar_frame, text="Start", fg_color="#2EB77C",
-                                                command=self.toggle_start_pause)
-        self.start_pause_button.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
-        create_tooltip(self.start_pause_button, "Click to start AutoClean and AutoDirect. Click again to pause.")
-
         self.help_button = ctk.CTkButton(self.sidebar_frame, text="Help", command=self.open_help_window)
         self.help_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
         create_tooltip(self.help_button, "Open the FAQ page.")
 
-    def start_operations(self):
-        self.auto_clean_handler.resume_operations()
-        self.auto_direct_handler.resume_operations()
-        self.is_paused = False
-        self.update_user_feedback()
-        self.start_pause_button.configure(text="Pause", fg_color="gray")
-        create_tooltip(self.start_pause_button, "Click to pause the program. Click again to resume.")
-        self.db_handler.save_status("running")
-
-    def pause_operations(self):
-        self.auto_clean_handler.pause_operations()
-        self.auto_direct_handler.pause_operations()
-        self.is_paused = True
-        self.update_user_feedback()
-        self.start_pause_button.configure(text="Start", fg_color="#2EB77C")
-        create_tooltip(self.start_pause_button, "Click to start the program. Click again to pause.")
-        self.db_handler.save_status("paused")
-
-    def toggle_start_pause(self):
-        if self.is_paused:
-            self.start_operations()
-        else:
-            self.pause_operations()
-
     def load_saved_status(self):
         status = self.db_handler.load_status()
-        return status != "running"  # If status is "running", return False to indicate it's not paused
+        return status != "running"
 
     def on_closing(self):
         self.destroy()
@@ -232,7 +200,7 @@ class App(ctk.CTk):
 
     def change_scaling_event(self, new_scaling: str):
         if new_scaling is None or new_scaling == 'None':
-            new_scaling = "100%"  # Default to 100% if 'None'
+            new_scaling = "100%"
         else:
             new_scaling_float = int(new_scaling.replace("%", "")) / 100
             self.db_handler.update_user_settings(ui_size=int(new_scaling.replace("%", "")))
@@ -245,11 +213,9 @@ class App(ctk.CTk):
         help_window = ctk.CTkToplevel(self)
         help_window.title("Frequently Asked Questions")
         help_window.geometry("600x500")
-
         help_scroll_frame = ctk.CTkScrollableFrame(help_window)
         help_scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # TODO : Finish Q & A
         q_and_a = [
             ("What does Peanut do?",
              "Peanut is a system software that helps you organize and manage your files efficiently. "
@@ -260,8 +226,6 @@ class App(ctk.CTk):
              "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\n5. Press ‘Save and Start’ on the left sidebar. Your redirect rule is now active!"),
             ("What is MultiSearch?",
              "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
-            ("How can I temporarily suspend the program without having to uninstall?",
-             "Press the “Pause” button on the left sidebar to pause Peanut and then press the “Save and Start” button when you’re ready to unpause."),
             ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... "),
             ("Will Peanut ever cost money?", "Peanut will never cost money nor require a subscription service.")
         ]
@@ -335,7 +299,6 @@ class App(ctk.CTk):
 
         db_handler = DatabaseHandler()
         db_handler.update_system_info(os, downloads_directory, desktop_directory, recycling_bin_directory, main_browser)
-
         setup_info_popup.destroy()
 
 
@@ -435,15 +398,15 @@ class TabView(ctk.CTkTabview):
         self.ms_search_button.pack(side="left", padx=3)
 
         self.search_results_frame = ctk.CTkScrollableFrame(master=self.tab("MultiSearch"), height=260)
-        self.search_results_frame.grid(row=3, column=1, sticky="nsew", padx=0, pady=1)  # Removed side padding
+        self.search_results_frame.grid(row=3, column=1, sticky="nsew", padx=0, pady=1)
         self.search_results_frame.grid_rowconfigure(0, weight=1)
         self.search_results_frame.grid_columnconfigure(0, weight=1)
 
         self.ms_button_frame = ctk.CTkFrame(master=self.tab("MultiSearch"))
-        self.ms_button_frame.grid(row=4, column=1, sticky="nsew", padx=0, pady=1)  # Removed side padding
+        self.ms_button_frame.grid(row=4, column=1, sticky="nsew", padx=0, pady=1)
 
         self.ms_select_all_button = ctk.CTkButton(self.ms_button_frame, text="select all", width=20,
-                                                  command=self.open_ms_rename_popup)
+                                                  command=self.select_all_files)
         self.ms_select_all_button.pack(side="left", padx=5, pady=1)
 
         self.ms_rename_button_image = ctk.CTkImage(light_image=Image.open("images/pencil.png"),
@@ -473,23 +436,21 @@ class TabView(ctk.CTkTabview):
     def load_autoclean_settings(self):
         settings = self.db_handler.get_autoclean_settings()
         if settings:
-            self.ac_folders_switch.select() if settings.get('empty_folders',
-                                                            False) else self.ac_folders_switch.deselect()
-            self.ac_unused_files_switch.select() if settings.get('unused_files',
-                                                                 False) else self.ac_unused_files_switch.deselect()
-            self.ac_duplicate_files_switch.select() if settings.get('duplicate_files',
-                                                                    False) else self.ac_duplicate_files_switch.deselect()
-            self.ac_recycling_switch.select() if settings.get('recycling_bin',
-                                                              False) else self.ac_recycling_switch.deselect()
-            self.ac_browser_history_switch.select() if settings.get('browser_history',
-                                                                    False) else self.ac_browser_history_switch.deselect()
-
-            next_cleaning_time = settings.get('next_clean_time', None)
-            if next_cleaning_time:
+            self.ac_folders_switch.select() if settings[
+                                                   'clean_empty_folders_flag'] == 1 else self.ac_folders_switch.deselect()
+            self.ac_unused_files_switch.select() if settings[
+                                                        'clean_unused_files_flag'] == 1 else self.ac_unused_files_switch.deselect()
+            self.ac_duplicate_files_switch.select() if settings[
+                                                           'clean_duplicate_files_flag'] == 1 else self.ac_duplicate_files_switch.deselect()
+            self.ac_recycling_switch.select() if settings[
+                                                     'clean_recycling_bin_flag'] == 1 else self.ac_recycling_switch.deselect()
+            self.ac_browser_history_switch.select() if settings[
+                                                           'clean_browser_history_flag'] == 1 else self.ac_browser_history_switch.deselect()
+            self.ac_freq_menu.set(settings['autoclean_frequency'] or "never")
+            next_cleaning_time_str = settings.get('next_cleaning_time', None)
+            if next_cleaning_time_str:
                 try:
-                    if isinstance(next_cleaning_time, datetime.datetime):
-                        next_cleaning_time = next_cleaning_time.isoformat()
-                    next_cleaning_time = datetime.datetime.fromisoformat(next_cleaning_time)
+                    next_cleaning_time = datetime.datetime.fromisoformat(next_cleaning_time_str)
                     remaining_time = next_cleaning_time - datetime.datetime.now()
                     days, seconds = remaining_time.days, remaining_time.seconds
                     hours = seconds // 3600
@@ -499,21 +460,20 @@ class TabView(ctk.CTkTabview):
                     formatted_time = "N/A"
             else:
                 formatted_time = "N/A"
-
             self.ac_next_cleaning_label.configure(text=f"Next Clean in\n\n{formatted_time}")
 
-            # Schedule the next update for the label
-            self.ac_next_cleaning_label.after(60000, self.load_autoclean_settings)  # Update every minute
-
     def set_clean_frequency(self, frequency):
+        self.auto_clean_handler.set_clean_frequency(frequency)
+        next_cleaning_time = self.auto_clean_handler.next_cleaning_time
         self.db_handler.update_clean_flags(
+            autoclean_frequency=frequency,
             clean_empty_folders_flag=self.ac_folders_switch.get(),
             clean_unused_files_flag=self.ac_unused_files_switch.get(),
             clean_duplicate_files_flag=self.ac_duplicate_files_switch.get(),
             clean_recycling_bin_flag=self.ac_recycling_switch.get(),
             clean_browser_history_flag=self.ac_browser_history_switch.get(),
+            next_cleaning_time=next_cleaning_time.isoformat() if next_cleaning_time else None
         )
-        self.auto_clean_handler.set_clean_frequency(frequency)
         self.update_next_cleaning_time_label()
 
     def update_next_cleaning_time_label(self):
@@ -522,7 +482,11 @@ class TabView(ctk.CTkTabview):
         self.ac_next_cleaning_label.after(60000, self.update_next_cleaning_time_label)  # Update every minute
 
     def clean_now(self):
-        self.auto_clean_handler.clean_now()
+        self.show_progress = True
+        self.update_user_feedback()
+        self.auto_clean_handler.activate_selected_AC(force=True)
+        self.show_progress = False
+        self.update_user_feedback()
         self.update_next_cleaning_time_label()
 
     def toggle_autoclean_feature(self, feature_name, value):
@@ -737,6 +701,11 @@ class TabView(ctk.CTkTabview):
             for file in files_found:
                 result_checkbox = ctk.CTkCheckBox(self.search_results_frame, text=file)
                 result_checkbox.pack(anchor="w", padx=15, pady=5)
+
+    def select_all_files(self):
+        for widget in self.search_results_frame.winfo_children():
+            if isinstance(widget, ctk.CTkCheckBox):
+                widget.select()
 
     def clear_search_results(self):
         for widget in self.search_results_frame.winfo_children():

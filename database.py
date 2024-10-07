@@ -26,12 +26,12 @@ class DatabaseHandler:
 
         c.execute('''CREATE TABLE IF NOT EXISTS AutoCleanSettings (
                         id INTEGER PRIMARY KEY,
-                        frequency TEXT,
                         clean_empty_folders_flag BOOLEAN,
                         clean_unused_files_flag BOOLEAN,
                         clean_duplicate_files_flag BOOLEAN,
                         clean_recycling_bin_flag BOOLEAN,
                         clean_browser_history_flag BOOLEAN,
+                        frequency TEXT,
                         next_cleaning_time TEXT
                      )''')
 
@@ -122,8 +122,8 @@ class DatabaseHandler:
             'clean_browser_history_flag': result[4]
         } if result else None
 
-    def update_clean_flags(self, autoclean_frequency, clean_empty_folders_flag, clean_unused_files_flag, clean_duplicate_files_flag,
-                           clean_recycling_bin_flag, clean_browser_history_flag, next_cleaning_time):
+    def update_clean_flags(self, clean_empty_folders_flag, clean_unused_files_flag, clean_duplicate_files_flag,
+                           clean_recycling_bin_flag, clean_browser_history_flag, autoclean_frequency, next_cleaning_time):
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
         c.execute('''
@@ -155,25 +155,20 @@ class DatabaseHandler:
     def get_autoclean_settings(self):
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
-        c.execute('''
-            SELECT frequency, clean_empty_folders_flag, clean_unused_files_flag, 
-                   clean_duplicate_files_flag, clean_recycling_bin_flag, clean_browser_history_flag, 
-                   next_cleaning_time FROM AutoCleanSettings WHERE id = 1
-        ''')
-        settings = c.fetchone()
+        c.execute('SELECT * FROM AutoCleanSettings WHERE id = 1')
+        row = c.fetchone()
         conn.close()
-        if settings:
+        if row:
             return {
-                'autoclean_frequency': settings[0],
-                'clean_empty_folders_flag': settings[1],
-                'clean_unused_files_flag': settings[2],
-                'clean_duplicate_files_flag': settings[3],
-                'clean_recycling_bin_flag': settings[4],
-                'clean_browser_history_flag': settings[5],
-                'next_cleaning_time': settings[6]
+                'clean_empty_folders_flag': row[1],
+                'clean_unused_files_flag': row[2],
+                'clean_duplicate_files_flag': row[3],
+                'clean_recycling_bin_flag': row[4],
+                'clean_browser_history_flag': row[5],
+                'autoclean_frequency': row[6],
+                'next_cleaning_time': row[7]
             }
-        else:
-            return None
+        return None
 
     def add_redirect(self, keyword, from_directory, to_directory):
         conn = sqlite3.connect(self.db_file)
@@ -231,7 +226,7 @@ class DatabaseHandler:
         return result[0] if result else f"Custom folder {index}"
 
     # Error Handling
-    def log_action(self, action_type, src_path, dst_path):  # TODO : add log_action for multisearch
+    def log_action(self, action_type, src_path, dst_path):
         conn = sqlite3.connect(self.db_file)
         c = conn.cursor()
         timestamp = datetime.datetime.now().isoformat()
@@ -255,5 +250,3 @@ class DatabaseHandler:
         result = c.fetchone()
         conn.close()
         return {'description': result[0]} if result else None
-
-    # TODO : wipe system/delete db for factory reset

@@ -4,10 +4,12 @@ import hashlib
 import schedule
 import threading
 import time
+from pathlib import Path
 from database import DatabaseHandler
 
 class AutoCleanHandler:
     def __init__(self):
+        self.user_home_directory = str(Path.home())
         self.next_cleaning_time = None
         self.frequency = None
         self.clean_recycling_bin_flag = None
@@ -20,19 +22,26 @@ class AutoCleanHandler:
         self.load_settings()
 
     def load_settings(self):
-        settings = self.db_handler.get_clean_flags()
-        if settings:
-            self.clean_empty_folders_flag = settings['clean_empty_folders_flag']
-            self.clean_unused_files_flag = settings['clean_unused_files_flag']
-            self.clean_duplicate_files_flag = settings['clean_duplicate_files_flag']
-            self.clean_recycling_bin_flag = settings['clean_recycling_bin_flag']
-            self.clean_browser_history_flag = settings['clean_browser_history_flag']
-        else:
-            self.clean_empty_folders_flag = False
-            self.clean_unused_files_flag = False
-            self.clean_duplicate_files_flag = False
-            self.clean_recycling_bin_flag = False
-            self.clean_browser_history_flag = False
+        try:
+            settings = self.db_handler.get_autoclean_settings()
+            if settings:
+                self.clean_empty_folders_flag = settings['clean_empty_folders_flag']
+                self.clean_unused_files_flag = settings['clean_unused_files_flag']
+                self.clean_duplicate_files_flag = settings['clean_duplicate_files_flag']
+                self.clean_recycling_bin_flag = settings['clean_recycling_bin_flag']
+                self.clean_browser_history_flag = settings['clean_browser_history_flag']
+                self.frequency = settings['autoclean_frequency']
+                next_cleaning_time_str = settings['next_cleaning_time']
+                self.next_cleaning_time = datetime.datetime.fromisoformat(
+                    next_cleaning_time_str) if next_cleaning_time_str else None
+            else:
+                self.clean_empty_folders_flag = False
+                self.clean_unused_files_flag = False
+                self.clean_duplicate_files_flag = False
+                self.clean_recycling_bin_flag = False
+                self.clean_browser_history_flag = False
+        except Exception as e:
+            self.db_handler.log_error(f"Error loading settings: {str(e)}")
 
     def save_settings(self):
         self.db_handler.update_clean_flags(
@@ -91,8 +100,8 @@ class AutoCleanHandler:
         self.clean_browser_history_flag = value
         self.save_settings()
 
-    def activate_selected_AC(self):
-        if self.next_cleaning_time and datetime.datetime.now() >= self.next_cleaning_time:
+    def activate_selected_AC(self, force=False):
+        if force or (self.next_cleaning_time and datetime.datetime.now() >= self.next_cleaning_time):
             self.previous_cleaning_time = datetime.datetime.now()
             self.save_settings()
             self.update_next_cleaning_time()
@@ -124,47 +133,60 @@ class AutoCleanHandler:
                 self.clean_browser_history()
 
     def clean_empty_folders(self, root_directory):
-        for root, dirs, _ in os.walk(root_directory):
-            for d in dirs:
-                folder_path = os.path.join(root, d)
-                if not os.listdir(folder_path):
-                    os.rmdir(folder_path)
+        try:
+            for root, dirs, _ in os.walk(root_directory):
+                for d in dirs:
+                    folder_path = os.path.join(root, d)
+                    if not os.listdir(folder_path):
+                        os.rmdir(folder_path)
+        except Exception as e:
+            self.db_handler.log_error(f"Error cleaning empty folders in {root_directory}: {str(e)}")
+
 
     def clean_unused_files(self, root_directory):
-        threshold = datetime.datetime.now() - datetime.timedelta(days=90)
-        for root, _, files in os.walk(root_directory):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if os.path.getatime(file_path) < threshold.timestamp():
-                    os.remove(file_path)
+        try:
+            threshold = datetime.datetime.now() - datetime.timedelta(days=90)
+            for root, _, files in os.walk(root_directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    if os.path.getatime(file_path) < threshold.timestamp():
+                        os.remove(file_path)
+        except Exception as e:
+            self.db_handler.log_error(f"Error cleaning unused files in {root_directory}: {str(e)}")
 
     def clean_duplicate_files(self, root_directory):
-        seen_files = {}
-        for root, _, files in os.walk(root_directory):
-            for file in files:
-                file_path = os.path.join(root, file)
-                file_hash = self.hash_file(file_path)
-                if file_hash in seen_files:
-                    os.remove(file_path)
-                else:
-                    seen_files[file_hash] = file_path
+        try:
+            seen_files = {}
+            for root, _, files in os.walk(root_directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    file_hash = self.hash_file(file_path)
+                    if file_hash in seen_files:
+                        os.remove(file_path)
+                    else:
+                        seen_files[file_hash] = file_path
+        except Exception as e:
+            self.db_handler.log_error(f"Error cleaning duplicate files in {root_directory}: {str(e)}")
 
-    @staticmethod
-    def hash_file(file_path):
-        hash_md5 = hashlib.md5()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
 
-    @staticmethod
-    def clean_recycling_bin():
+    def hash_file(self, file_path):
+        try:
+            hash_md5 = hashlib.md5()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+        except Exception as e:
+            self.db_handler.log_error(f"Error hashing file {file_path}: {str(e)}")
+            return None
+
+    def clean_recycling_bin(self):
         try:
             os.system('powershell.exe Clear-RecycleBin -Force')
-        except Exception:  # TODO : error handling & user feedback message
-            pass
+        except Exception as e:
+            self.db_handler.log_error(f"Error cleaning recycling bin: {str(e)}")
 
-    def clean_browser_history(self):  # TODO : logic & error handling
+    def clean_browser_history(self):
         browsers = {
             "Chrome": os.path.join(os.getenv("LOCALAPPDATA"), "Google", "Chrome", "User Data", "Default", "History"),
             "Firefox": os.path.join(os.getenv("APPDATA"), "Mozilla", "Firefox", "Profiles"),
@@ -179,34 +201,38 @@ class AutoCleanHandler:
                         if os.path.exists(profile_path):
                             try:
                                 os.remove(profile_path)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                self.db_handler.log_error(f"Error cleaning browser history: {str(e)}")
             else:
                 if os.path.exists(path):
                     try:
                         os.remove(path)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        self.db_handler.log_error(f"Error cleaning browser history: {str(e)}")
 
     def run_auto_cleaning(self):
         if not self.is_running:
             self.activate_selected_AC()
 
-    def schedule_cleaning(self, user_chosen_frequency):
-        self.set_clean_frequency(user_chosen_frequency)
+    def schedule_cleaning(self, frequency):
+        self.set_clean_frequency(frequency)
+        schedule.every().day.at("05:00").do(self.run_auto_cleaning).tag('auto_clean')
 
         def scheduler_thread():
-            while True:
+            while self.is_running:  # Keep checking if the scheduler is active
                 schedule.run_pending()
                 time.sleep(1)
 
-        schedule.every().day.at("05:00").do(self.run_auto_cleaning)
-        threading.Thread(target=scheduler_thread).start()
+        # If a thread is already running, don't start a new one
+        if not hasattr(self, 'scheduler_thread') or not self.scheduler_thread.is_alive():
+            self.scheduler_thread = threading.Thread(target=scheduler_thread, daemon=True)
+            self.scheduler_thread.start()
 
     def pause_operations(self):
         self.is_running = False
         schedule.clear('auto_clean')
 
     def resume_operations(self):
-        self.is_running = True
-        self.schedule_cleaning(self.frequency)
+        if not self.is_running:
+            self.is_running = True
+            self.schedule_cleaning(self.frequency)

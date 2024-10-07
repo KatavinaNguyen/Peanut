@@ -6,6 +6,7 @@ class MultiSearchHandler:
     def __init__(self):
         self.db_handler = DatabaseHandler()
         self.found_files = []
+        # file extensions that are valid for batch renaming
         self.valid_extensions = [
             ".txt", ".doc", ".docx", ".rtf", ".odt", ".pdf",  # Document formats
             ".xls", ".xlsx", ".csv", ".ods",  # Spreadsheet formats
