@@ -155,6 +155,10 @@ class App(ctk.CTk):
         self.create_sidebar_theme_scaling()
 
     def create_sidebar_buttons(self):
+        self.peanut_logo_image = ctk.CTkImage(light_image=Image.open("images/peanut.ico"),
+                                              dark_image=Image.open("images/peanut.ico"))
+        self.peanut_image_label = ctk.CTkLabel(self.sidebar_frame, image=self.peanut_logo_image, text="")
+        self.peanut_image_label.grid(row=1, column=0, padx=20, pady=10)
         self.help_button = ctk.CTkButton(self.sidebar_frame, text="Help", command=self.open_help_window)
         self.help_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
         create_tooltip(self.help_button, "Open the FAQ page.")
