@@ -6,6 +6,12 @@ Meet Peanut, your friendly file-managing squirrel monkey! Peanut is here to make
 - **MultiSearch** - Search for files, rename them, convert formats, and more--all in one go!<br>
 - **User Preferences** - Peanut remembers your settings and preferences using a built-in SQLite database.
 
+[Watch Demo](https://youtu.be/QnRgXUTsZNY)
+
+<a href="https://youtu.be/QnRgXUTsZNY">
+  <img src="https://github.com/user-attachments/assets/194ddb84-176a-4d1c-8181-367d7bbf1b19" alt="Watch Demo" />
+</a>
+
 
 ## How to Install & Run
 1. **Clone the Repo**: `git clone https://github.com/KatavinaNguyen/Peanut.git`
@@ -22,8 +28,5 @@ Navigate the 3 tabs at the top of the **Main Screen**.
 + Set up **AutoDirect** rules to keep your files organized automatically. 
 + Try out **MultiSearch** for complex file operations.<br><br>
 
-![](images/readmepngs/peanut-1-autoclean.png)
-
-![](images/readmepngs/peanut-2-autodirect.png)
-
-![](images/readmepngs/peanut-3-multisearch.png)
+<img src="images/readmepngs/ac-lightmode.png" width="500"> <img src="images/readmepngs/ac-lightmode.png" width="500">
+<img src="images/readmepngs/ad.png" width="500"> <img src="images/readmepngs/ms.png" width="500">
