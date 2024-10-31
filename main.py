@@ -69,9 +69,10 @@ class App(ctk.CTk):
         self.title("Peanut Automated File Manager")
         self.iconbitmap("images/peanut.ico")
         self.db_handler = DatabaseHandler()
-        self.tab_view = TabView(master=self)
+        self.tab_view = TabView(master=self, app=self)
         self.show_progress = False
         self.show_error = False
+        self.tab_view = TabView(master=self, app=self)
         self.auto_clean_handler = AutoCleanHandler()
         self.auto_direct_handler = AutoDirectHandler()
         self.auto_clean_handler.load_settings()
@@ -125,7 +126,7 @@ class App(ctk.CTk):
             self.ui_size = 100
             self.theme = 'system'
         self.create_sidebar()
-        self.tab_view = TabView(master=self)
+        self.tab_view = TabView(master=self, app=self)
         self.tab_view.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
         self.apply_settings()
         self.tab_view.load_redirects()
@@ -240,8 +241,7 @@ class App(ctk.CTk):
             ("What is AutoDirect?",
              "Automatically redirect files to specified folders based on keywords.\n1. Open the AutoDirect Tab at the top of the screen\n2. Click ‘+’ to create a new redirect entry\n3. Enter a keyword to identify the files\n4. Click the ‘browse’ button to set the folder you want your files to move to\nYour redirect rule is now active!"),
             ("What is MultiSearch?",
-             "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames."),
-            ("Will Peanut slow down my computer?", "it can slow down, so to be safe use it at night... ")
+             "MultiSearch allows you to find and edit files quickly and easily. Here's how to use it:\n1. Open the MultiSearch Tab\n2. Enter a directory (required) and a keyword: Click the ‘search’ button to see the results.\n3. Select files: Check the boxes next to the files you want to work with.\n4. Choose an action:\n\t- Delete: Remove the selected files.\n\t- Copy: Move the selected files into a new folder within your Downloads directory.\n\t- Rename:\n\t\t- Find & Replace:\n\t\t\t- Box 1: Enter the word(s) you want to find.\n\t\t\t- Box 2: Enter the word(s) you want to replace them with.\n\t\t- Convert File Formats:\n\t\t\t- Box 1: Enter the file extension you want to find.\n\t\t\t- Box 2: Enter the file extension you want to convert to.\n\t\t- Add Prefix/Suffix:\n\t\t\t- Box 1: Enter ‘+’ for prefix or ‘-’ for suffix.\n\t\t\t- Box 2: Enter the word you want to add to the filenames.")
         ]
 
         for question, answer in q_and_a:
@@ -317,7 +317,7 @@ class App(ctk.CTk):
 
 
 class TabView(ctk.CTkTabview):
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, app, **kwargs):
         super().__init__(master, **kwargs)
         self.ac_next_cleaning_label = None
         self.next_cleaning_time = None
@@ -325,6 +325,7 @@ class TabView(ctk.CTkTabview):
         self.auto_clean_handler = AutoCleanHandler()
         self.auto_direct_handler = AutoDirectHandler()
         self.multi_search_handler = MultiSearchHandler()
+        self.app = app
         self.add("AutoClean")
         self.add("AutoDirect")
         self.add("MultiSearch")
@@ -497,10 +498,10 @@ class TabView(ctk.CTkTabview):
 
     def clean_now(self):
         self.show_progress = True
-        self.update_user_feedback()
+        self.app.update_user_feedback()
         self.auto_clean_handler.activate_selected_AC(force=True)
         self.show_progress = False
-        self.update_user_feedback()
+        self.app.update_user_feedback()
         self.update_next_cleaning_time_label()
 
     def toggle_autoclean_feature(self, feature_name, value):
@@ -671,23 +672,20 @@ class TabView(ctk.CTkTabview):
             widget.insert(0, placeholder)
             widget.config(fg="grey")
 
-    def remove_redirect(self, frame, ad_redir_key_entry, ad_from_dir_menu, ad_to_dir_entry):
-        keyword = ad_redir_key_entry.get()
-        from_directory = ad_from_dir_menu.get()
-        to_directory = ad_to_dir_entry.get()
+    def remove_all_redirects(self):
+        for entry in self.redirect_entries[:]:
+            frame = entry[0].master
+            self.remove_redirect(frame)
+        self.redirect_entries.clear()
 
-        self.db_handler.delete_redirect(keyword, from_directory, to_directory)
-        self.auto_direct_handler.remove_mapping(keyword, from_directory, to_directory)
-
+    def remove_redirect(self, frame, *widgets):
+        for widget in widgets:
+            widget.destroy()
         frame.pack_forget()
         frame.destroy()
-        self.redirect_entries = [(e1, e2, e3) for e1, e2, e3 in self.redirect_entries if
-                                 e1.winfo_exists() and e2.winfo_exists() and e3.winfo_exists()]
-
-    def remove_all_redirects(self):
-        for entry in self.redirect_entries:
-            entry[0].destroy()
-        self.redirect_entries.clear()
+        self.redirect_entries = [
+            entry for entry in self.redirect_entries if entry[0].winfo_exists()
+        ]
         self.db_handler.clear_all_redirects()
 
     def load_redirects(self):

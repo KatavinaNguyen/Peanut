@@ -9,6 +9,7 @@ from database import DatabaseHandler
 
 class AutoCleanHandler:
     def __init__(self):
+        self.previous_cleaning_time = None
         self.user_home_directory = str(Path.home())
         self.next_cleaning_time = None
         self.frequency = None
@@ -102,13 +103,14 @@ class AutoCleanHandler:
 
     def activate_selected_AC(self, force=False):
         if force or (self.next_cleaning_time and datetime.datetime.now() >= self.next_cleaning_time):
+            print("Cleaning started...")
             self.previous_cleaning_time = datetime.datetime.now()
             self.save_settings()
             self.update_next_cleaning_time()
             self.save_settings()
 
             directories = [
-                os.path.join(self.user_home_directory, 'Documents'),
+                r"C:\Users\nnawh\OneDrive\Desktop",
                 os.path.join(self.user_home_directory, 'Downloads'),
                 os.path.join(self.user_home_directory, 'Desktop'),
                 os.path.join(self.user_home_directory, 'AppData', 'Local', 'Temp')
@@ -138,6 +140,7 @@ class AutoCleanHandler:
                 for d in dirs:
                     folder_path = os.path.join(root, d)
                     if not os.listdir(folder_path):
+                        print(f"Deleting empty folder: {folder_path}")
                         os.rmdir(folder_path)
         except Exception as e:
             self.db_handler.log_error(f"Error cleaning empty folders in {root_directory}: {str(e)}")
